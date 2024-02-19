@@ -25,7 +25,8 @@ pytest = { version = "*", optional = true }
 pytest-cov = { version = "*", optional = true }
 torch = "^2.2.0"
 torchvision = "^0.17.0"
-terratorch = {git = "git@github.ibm.com:GeoFM-Finetuning/terratorch.git"}
+# eventually change to main branch
+terratorch = {git = "git@github.ibm.com:GeoFM-Finetuning/terratorch.git", branch="feature/model_factory_as_string"}
 more-itertools = "^10.2.0"
 mlflow = "^2.10.2"
 importlib-metadata = "4.13.0"
@@ -50,9 +51,10 @@ better-apidoc = "*"
 six = "*"
 sphinx-rtd-theme = "*"
 myst-parser = "*"
+ruff = "^0.2.2"
 
 [tool.poetry.scripts]
-salutation = "benchmark.complex_module.core:formal_introduction"
+benchmark = "benchmark.benchmark:main"
 
 [tool.black]
 line-length = 88
