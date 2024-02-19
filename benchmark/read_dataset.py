@@ -58,20 +58,22 @@ class Task:
 
 def build_model_args(backbone: Backbone, task: Task):
     args = {}
-    args["task"] = task.type
     args["backbone"] = backbone.backbone_name
     for backbone_key, backbone_val in backbone.backbone_args.items():
         args[f"backbone_{backbone_key}"] = backbone_val
+    args["pretrained"] = False
     
     args["decoder"] = task.decoder_name
-    for decoder_key, decoder_val in backbone.decoder_args.items():
+    for decoder_key, decoder_val in task.decoder_args.items():
         args[f"decoder_{decoder_key}"] = decoder_val
     
-    for head_key, head_val in backbone.head_args.items():
+    for head_key, head_val in task.head_args.items():
         args[f"head_{head_key}"] = head_val
-        
+
     args["in_channels"] = len(task.bands)
     args["bands"] = task.bands
+
+    return args
 
 def benchmark_backbone(backbone: Backbone, tasks: list[Task]):
     for task in tasks:

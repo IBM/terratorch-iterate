@@ -3,5 +3,13 @@ backbone:
 
 tasks:
   - type: regression
+    loss: rmse
+    bands:
+      - BLUE
+      - GREEN
+      - RED
+      - NIR_NARROW
+      - SWIR_1
+      - SWIR_2
     datamodule: benchmark/resources/dataset_specifications/agb.yaml
     decoder_name: FCNDecoder
