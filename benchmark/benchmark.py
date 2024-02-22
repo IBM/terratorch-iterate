@@ -254,8 +254,8 @@ def fit_model_with_hparams(
     run_name: str,
     hparam_space: optimization_space_type,
     storage_uri: str,
-    trial: optuna.Trial,
     save_models: bool,
+    trial: optuna.Trial,
 ) -> float:
     # treat lr and batch_size specially
 
