@@ -229,7 +229,6 @@ def fit_model(
         optimizer=torch.optim.AdamW,
         freeze_backbone=task.freeze_backbone,
         ignore_index=task.ignore_index,
-        enable_checkpointing=save_models,
     )
     callbacks = [
         RichProgressBar(),
@@ -240,6 +239,7 @@ def fit_model(
     trainer = Trainer(
         callbacks=callbacks,
         max_epochs=task.max_epochs,
+        enable_checkpointing=save_models,
     )
     return launch_training(
         trainer, lightning_task, task.datamodule, run_name, task.metric, storage_uri
