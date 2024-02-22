@@ -1,19 +1,21 @@
 backbone:
   backbone_name: prithvi_vit_100
 tasks:
-  # - name: agb
-  #   type: regression
-  #   loss: rmse
-  #   bands:
-  #     - BLUE
-  #     - GREEN
-  #     - RED
-  #     - NIR_NARROW
-  #     - SWIR_1
-  #     - SWIR_2
-  #   max_epochs: 1
-  #   datamodule: benchmark/resources/dataset_specifications/agb.yaml
-  #   decoder_name: FCNDecoder
+  - name: agb
+    type: regression
+    loss: rmse
+    bands:
+      - BLUE
+      - GREEN
+      - RED
+      - NIR_NARROW
+      - SWIR_1
+      - SWIR_2
+    ignore_index: -1
+    max_epochs: 1
+    datamodule: benchmark/resources/dataset_specifications/agb.yaml
+    decoder_name: FCNDecoder
+    metric: val/RMSE
   - name: sen1floods11
     type: segmentation
     loss: ce
@@ -28,4 +30,26 @@ tasks:
     max_epochs: 1
     datamodule: benchmark/resources/dataset_specifications/sen1floods11.yaml
     decoder_name: FCNDecoder
-benchmark_suffix: lr_trial
+    metric: val/loss
+benchmark_suffix: test_val_set_optuna_comparison
+n_trials: 2
+storage_uri: /dccstor/geofm-finetuning/carlosgomes/benchmark
+optimization_space:
+  lr:
+    min: 1e-5
+    max: 1e-2
+    type: real
+  batch_size:
+    - 8
+    - 16
+    - 32
+
+  decoder_channels:
+    min: 16
+    max: 256
+    type: integer
+
+  head_dropout:
+    min: 0
+    max: 0.8
+    type: real

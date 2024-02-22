@@ -4022,8 +4022,8 @@ dev = ["black", "mkdocs-material", "mkdocstrings[python]"]
 [package.source]
 type = "git"
 url = "git@github.ibm.com:GeoFM-Finetuning/terratorch.git"
-reference = "HEAD"
-resolved_reference = "c60d8c2879d24155bf12f49dbd21c279d6381c55"
+reference = "feature/model_factory_as_string"
+resolved_reference = "21b7122ac888ef2cac8bbd80cf408b7fab6c5507"
 
 [[package]]
 name = "threadpoolctl"
@@ -4524,4 +4524,4 @@ test = ["pytest", "pytest-cov"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">= 3.10, < 3.11"
-content-hash = "1f184c13bd66fc8aa1d0000e23efec641172a5f6fc183cc741c4177aae2dffb0"
+content-hash = "43ccb8e5a73c4ea2049be86e5b8e6a85ef4b65fe9da7e2ab9b9cbcfda14dca38"
