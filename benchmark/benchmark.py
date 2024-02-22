@@ -14,7 +14,6 @@ from jsonargparse import CLI
 from lightning import LightningDataModule, LightningModule, Trainer
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint, RichProgressBar
 from lightning.pytorch.loggers import MLFlowLogger
-from tabulate import tabulate
 from terratorch.datasets import HLSBands
 from terratorch.models import PrithviModelFactory
 from terratorch.tasks import (
@@ -214,6 +213,7 @@ def fit_model(
     storage_uri: str,
     lr: float | None = None,
     batch_size: int | None = None,
+    save_models: bool = True,
 ) -> tuple[float, str]:
     if batch_size:
         task.datamodule.batch_size = (
@@ -229,13 +229,16 @@ def fit_model(
         optimizer=torch.optim.AdamW,
         freeze_backbone=task.freeze_backbone,
         ignore_index=task.ignore_index,
+        enable_checkpointing=save_models,
     )
+    callbacks = [
+        RichProgressBar(),
+        EarlyStopping(monitor="val/loss", patience=5),  # let user configure this
+    ]
+    if save_models:
+        callbacks.append(ModelCheckpoint(monitor="val/loss"))
     trainer = Trainer(
-        callbacks=[
-            RichProgressBar(),
-            EarlyStopping(monitor="val/loss", patience=5),  # let user configure this
-            ModelCheckpoint(monitor="val/loss"),
-        ],
+        callbacks=callbacks,
         max_epochs=task.max_epochs,
     )
     return launch_training(
@@ -252,6 +255,7 @@ def fit_model_with_hparams(
     hparam_space: optimization_space_type,
     storage_uri: str,
     trial: optuna.Trial,
+    save_models: bool,
 ) -> float:
     # treat lr and batch_size specially
 
@@ -292,6 +296,7 @@ def fit_model_with_hparams(
         storage_uri,
         lr=lr,
         batch_size=batch_size,
+        save_models=save_models,
     )[0]  # return only the metric value for optuna
 
 
@@ -301,6 +306,7 @@ def benchmark_backbone_on_task(
     storage_uri: str,
     optimization_space: optimization_space_type | None = None,
     n_trials: int = 1,
+    save_models: bool = True,
 ) -> tuple[float, str | list[str] | None, dict[str, Any]]:
     with mlflow.start_run(
         run_name=f"{backbone.backbone_name}_{task.name}", nested=True
@@ -318,6 +324,7 @@ def benchmark_backbone_on_task(
                     lightning_task_class,
                     f"{run.info.run_name}",
                     storage_uri,
+                    save_models=save_models,
                 ),
                 {},
             )
@@ -335,6 +342,7 @@ def benchmark_backbone_on_task(
             f"{backbone.backbone_name}_{task.name}",
             optimization_space,
             storage_uri,
+            save_models,
         )
         study.optimize(
             objective,
@@ -353,6 +361,7 @@ def benchmark_backbone(
     benchmark_suffix: str | None = None,
     n_trials: int = 1,
     optimization_space: optimization_space_type | None = None,
+    save_models: bool = True,
 ):
     mlflow.set_tracking_uri(storage_uri)
     mlflow.set_experiment(EXPERIMENT_NAME)
@@ -372,6 +381,7 @@ def benchmark_backbone(
                 storage_uri,
                 optimization_space=optimization_space,
                 n_trials=n_trials,
+                save_models=save_models,
             )
             table_entries.append([task.name, metric_name, best_value, hparams])
 

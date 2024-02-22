@@ -31,10 +31,14 @@ tasks:
     datamodule: benchmark/resources/dataset_specifications/sen1floods11.yaml
     decoder_name: FCNDecoder
     metric: val/loss
-benchmark_suffix: test_val_set_optuna_comparison
-n_trials: 2
+benchmark_suffix: real_benchmark
+n_trials: 10
+save_models: False
 storage_uri: /dccstor/geofm-finetuning/carlosgomes/benchmark
 optimization_space:
+  decoder_name:
+    - FCNDecoder
+    - UperNetDecoder
   lr:
     min: 1e-5
     max: 1e-2
