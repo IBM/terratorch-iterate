@@ -14,6 +14,7 @@ from jsonargparse import CLI
 from lightning import LightningDataModule, LightningModule, Trainer
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint, RichProgressBar
 from lightning.pytorch.loggers import MLFlowLogger
+from tabulate import tabulate
 from terratorch.datasets import HLSBands
 from terratorch.models import PrithviModelFactory
 from terratorch.tasks import (
@@ -67,7 +68,7 @@ optimization_space_type = dict[str, list | ParameterBounds]
 
 @dataclass
 class Backbone:
-    backbone_name: str
+    backbone: str
     model_factory: str = "PrithviModelFactory"
     backbone_args: dict[str, Any] = field(default_factory=dict)
 
@@ -78,7 +79,7 @@ class Task:
     type: TaskTypeEnum
     bands: list[HLSBands | int]
     datamodule: LightningDataModule
-    decoder_name: str
+    decoder: str
     loss: str
     metric: str = "val/loss"
     lr: float = 1e-3
@@ -137,12 +138,12 @@ def champion_callback(study: optuna.Study, frozen_trial):
 
 def build_model_args(backbone: Backbone, task: Task) -> dict[str, Any]:
     args = {}
-    args["backbone"] = backbone.backbone_name
+    args["backbone"] = backbone.backbone
     for backbone_key, backbone_val in backbone.backbone_args.items():
         args[f"backbone_{backbone_key}"] = backbone_val
     args["pretrained"] = False
 
-    args["decoder"] = task.decoder_name
+    args["decoder"] = task.decoder
     for decoder_key, decoder_val in task.decoder_args.items():
         args[f"decoder_{decoder_key}"] = decoder_val
 
@@ -309,7 +310,7 @@ def benchmark_backbone_on_task(
     save_models: bool = True,
 ) -> tuple[float, str | list[str] | None, dict[str, Any]]:
     with mlflow.start_run(
-        run_name=f"{backbone.backbone_name}_{task.name}", nested=True
+        run_name=f"{backbone.backbone}_{task.name}", nested=True
     ) as run:
         lightning_task_class = get_class_from_enum(task.type)
         model_args = build_model_args(backbone, task)
@@ -339,7 +340,7 @@ def benchmark_backbone_on_task(
             task,
             lightning_task_class,
             model_args,
-            f"{backbone.backbone_name}_{task.name}",
+            f"{backbone.backbone}_{task.name}",
             optimization_space,
             storage_uri,
             save_models,
@@ -366,7 +367,7 @@ def benchmark_backbone(
     mlflow.set_tracking_uri(storage_uri)
     mlflow.set_experiment(EXPERIMENT_NAME)
     mlflow.pytorch.autolog(log_datasets=False)
-    run_name = backbone.backbone_name
+    run_name = backbone.backbone
     if benchmark_suffix:
         run_name += f"_{benchmark_suffix}"
 

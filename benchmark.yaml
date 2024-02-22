@@ -1,5 +1,5 @@
 backbone:
-  backbone_name: prithvi_vit_100
+  backbone: prithvi_vit_100
 tasks:
   - name: agb
     type: regression
@@ -14,7 +14,7 @@ tasks:
     ignore_index: -1
     max_epochs: 1
     datamodule: benchmark/resources/dataset_specifications/agb.yaml
-    decoder_name: FCNDecoder
+    decoder: FCNDecoder
     metric: val/RMSE
   - name: sen1floods11
     type: segmentation
@@ -29,14 +29,14 @@ tasks:
       - SWIR_2
     max_epochs: 1
     datamodule: benchmark/resources/dataset_specifications/sen1floods11.yaml
-    decoder_name: FCNDecoder
+    decoder: FCNDecoder
     metric: val/loss
 benchmark_suffix: real_benchmark
 n_trials: 10
 save_models: False
 storage_uri: /dccstor/geofm-finetuning/carlosgomes/benchmark
 optimization_space:
-  decoder_name:
+  decoder:
     - FCNDecoder
     - UperNetDecoder
   lr:
