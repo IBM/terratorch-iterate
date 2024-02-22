@@ -12,7 +12,7 @@ tasks:
       - SWIR_1
       - SWIR_2
     ignore_index: -1
-    max_epochs: 1
+    max_epochs: 40
     datamodule: benchmark/resources/dataset_specifications/agb.yaml
     decoder: FCNDecoder
     metric: val/RMSE
@@ -27,7 +27,7 @@ tasks:
       - NIR_NARROW
       - SWIR_1
       - SWIR_2
-    max_epochs: 1
+    max_epochs: 40
     datamodule: benchmark/resources/dataset_specifications/sen1floods11.yaml
     decoder: FCNDecoder
     metric: val/loss
