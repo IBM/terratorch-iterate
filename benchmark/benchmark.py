@@ -2,6 +2,7 @@ import copy
 import enum
 from dataclasses import dataclass, field
 from functools import partial
+from re import A
 from typing import Any
 
 import albumentations  # noqa: F401
@@ -22,6 +23,7 @@ from terratorch.tasks import (
     IBMPixelwiseRegressionTask,
     IBMSemanticSegmentationTask,
 )
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torchgeo.trainers import BaseTask
 
 EXPERIMENT_NAME = "backbone_benchmark"
@@ -85,9 +87,12 @@ class Task:
     lr: float = 1e-3
     max_epochs: int = 100
     freeze_backbone: bool = False
+    num_classes: int | None = None
+    backbone_args: dict[str, Any] = field(default_factory=dict)
     decoder_args: dict[str, Any] = field(default_factory=dict)
     head_args: dict[str, Any] = field(default_factory=dict)
     ignore_index: int | None = None
+    optimization_except: set[str] = field(default_factory=set)
 
 
 # override Optuna's default logging to ERROR only
@@ -141,6 +146,10 @@ def build_model_args(backbone: Backbone, task: Task) -> dict[str, Any]:
     args["backbone"] = backbone.backbone
     for backbone_key, backbone_val in backbone.backbone_args.items():
         args[f"backbone_{backbone_key}"] = backbone_val
+
+    # allow each task to specify / overwrite backbone keys
+    for backbone_key, backbone_val in task.backbone_args.items():
+        args[f"backbone_{backbone_key}"] = backbone_val
     args["pretrained"] = False
 
     args["decoder"] = task.decoder
@@ -154,8 +163,18 @@ def build_model_args(backbone: Backbone, task: Task) -> dict[str, Any]:
     args["bands"] = task.bands
 
     if task.type != TaskTypeEnum.regression:
-        args["num_classes"] = task.datamodule.num_classes
-
+        if task.num_classes is not None:
+            args["num_classes"] = task.num_classes
+        else:
+            try:
+                args["num_classes"] = task.datamodule.num_classes
+            except AttributeError:
+                try:
+                    args["num_classes"] = len(task.datamodule.dataset.classes)
+                except AttributeError:
+                    raise Exception(
+                        f"Could not infer num_classes. Please provide it explicitly for task {task.name}"
+                    )
     return args
 
 
@@ -214,6 +233,7 @@ def fit_model(
     storage_uri: str,
     lr: float | None = None,
     batch_size: int | None = None,
+    freeze_backbone: bool = False,
     save_models: bool = True,
 ) -> tuple[float, str]:
     if batch_size:
@@ -222,18 +242,21 @@ def fit_model(
         )
     if lr is None:
         lr = task.lr
+
     lightning_task = lightning_task_class(
         model_args,
         backbone.model_factory,
         loss=task.loss,
         lr=lr,
         optimizer=torch.optim.AdamW,
-        freeze_backbone=task.freeze_backbone,
+        freeze_backbone=freeze_backbone,
         ignore_index=task.ignore_index,
+        scheduler=ReduceLROnPlateau,
+        scheduler_hparams={"patience": 5},
     )
     callbacks = [
         RichProgressBar(),
-        EarlyStopping(monitor="val/loss", patience=5),  # let user configure this
+        EarlyStopping(monitor="val/loss", patience=10),  # let user configure this
     ]
     if save_models:
         callbacks.append(ModelCheckpoint(monitor="val/loss"))
@@ -263,6 +286,8 @@ def fit_model_with_hparams(
     current_hparams: dict[str, int | float | str | bool] = {}
 
     for parameter, space in hparam_space.items():
+        if parameter in task.optimization_except:
+            continue
         if isinstance(space, list):
             current_hparams[parameter] = trial.suggest_categorical(parameter, space)
         elif isinstance(space, ParameterBounds):
@@ -286,6 +311,7 @@ def fit_model_with_hparams(
     batch_size = current_hparams.pop("batch_size", None)
     if batch_size is not None:
         batch_size = int(batch_size)
+    freeze_backbone = bool(current_hparams.pop("freeze_backbone", False))
     model_args = inject_hparams(base_args, current_hparams)
     run_name = f"{run_name}_{trial.number}"
     return fit_model(
@@ -297,6 +323,7 @@ def fit_model_with_hparams(
         storage_uri,
         lr=lr,
         batch_size=batch_size,
+        freeze_backbone=freeze_backbone,
         save_models=save_models,
     )[0]  # return only the metric value for optuna
 
@@ -332,8 +359,8 @@ def benchmark_backbone_on_task(
 
         # if optimization parameters specified, do hyperparameter tuning
         study = optuna.create_study(
-            direction="minimize"
-        )  # in the future may want to allow user to specify this
+            direction="minimize"  # in the future may want to allow user to specify this
+        )
         objective = partial(
             fit_model_with_hparams,
             backbone,
@@ -398,7 +425,7 @@ def benchmark_backbone(
 
 
 def main():
-    CLI(benchmark_backbone)
+    CLI(benchmark_backbone, fail_untyped=False)
 
 
 if __name__ == "__main__":

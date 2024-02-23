@@ -1,5 +1,6 @@
+benchmark_suffix: test_eurosat
 backbone:
-  backbone: prithvi_vit_100
+  backbone: prithvi_swin_L
 tasks:
   - name: agb
     type: regression
@@ -12,7 +13,9 @@ tasks:
       - SWIR_1
       - SWIR_2
     ignore_index: -1
-    max_epochs: 40
+    backbone_args:
+      drop_path_rate: 0.3
+    max_epochs: 60
     datamodule: benchmark/resources/dataset_specifications/agb.yaml
     decoder: FCNDecoder
     metric: val/RMSE
@@ -27,33 +30,50 @@ tasks:
       - NIR_NARROW
       - SWIR_1
       - SWIR_2
-    max_epochs: 40
+    max_epochs: 60
     datamodule: benchmark/resources/dataset_specifications/sen1floods11.yaml
     decoder: FCNDecoder
     metric: val/loss
-benchmark_suffix: real_benchmark
+  - name: eurosat
+    type: classification
+    loss: ce
+    bands:
+      - BLUE
+      - GREEN
+      - RED
+      - NIR_NARROW
+      - SWIR_1
+      - SWIR_2
+    num_classes: 10
+    max_epochs: 60
+    datamodule: benchmark/resources/dataset_specifications/eurosat.yaml
+    decoder: IdentityDecoder
+    metric: val/loss
+    optimization_except:
+      - decoder_channels
 n_trials: 10
 save_models: False
 storage_uri: /dccstor/geofm-finetuning/carlosgomes/benchmark
 optimization_space:
-  decoder:
-    - FCNDecoder
-    - UperNetDecoder
+  # decoder:
+  #   - FCNDecoder
+  #   - UperNetDecoder
   lr:
     min: 1e-5
     max: 1e-2
     type: real
   batch_size:
     - 8
-    - 16
     - 32
-
+    - 64
   decoder_channels:
     min: 16
     max: 256
     type: integer
-
   head_dropout:
     min: 0
     max: 0.8
     type: real
+  freeze_backbone:
+    - true
+    - false
