@@ -15,7 +15,7 @@ tasks:
     ignore_index: -1
     backbone_args:
       drop_path_rate: 0.3
-    max_epochs: 60
+    max_epochs: 1
     head_args:
       final_act: torch.nn.ReLU
       learned_upscale_layers: 2
@@ -33,7 +33,7 @@ tasks:
       - NIR_NARROW
       - SWIR_1
       - SWIR_2
-    max_epochs: 60
+    max_epochs: 1
     datamodule: benchmark/resources/dataset_specifications/sen1floods11.yaml
     decoder: FCNDecoder
     metric: val/loss
@@ -48,7 +48,7 @@ tasks:
       - SWIR_1
       - SWIR_2
     num_classes: 10
-    max_epochs: 60
+    max_epochs: 1
     datamodule: benchmark/resources/dataset_specifications/eurosat.yaml
     decoder: IdentityDecoder
     metric: val/loss
