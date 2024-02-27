@@ -1,6 +1,7 @@
-benchmark_suffix: test_eurosat
+benchmark_suffix: full_benchmark
+experiment_name: backbone_benchmark
 backbone:
-  backbone: prithvi_swin_L
+  backbone: prithvi_swin_B
 tasks:
   - name: agb
     type: regression
@@ -16,8 +17,15 @@ tasks:
     backbone_args:
       drop_path_rate: 0.3
     max_epochs: 60
+    head_args:
+      final_act: torch.nn.ReLU
+      learned_upscale_layers: 2
+      channel_list:
+        - 64
     datamodule: benchmark/resources/dataset_specifications/agb.yaml
-    decoder: FCNDecoder
+    decoder: UperNetDecoder
+    decoder_args:
+      channels: 128
     metric: val/RMSE
   - name: sen1floods11
     type: segmentation
@@ -32,7 +40,9 @@ tasks:
       - SWIR_2
     max_epochs: 60
     datamodule: benchmark/resources/dataset_specifications/sen1floods11.yaml
-    decoder: FCNDecoder
+    decoder: UperNetDecoder
+    decoder_args:
+      channels: 128
     metric: val/loss
   - name: eurosat
     type: classification
@@ -51,7 +61,9 @@ tasks:
     metric: val/loss
     optimization_except:
       - decoder_channels
-n_trials: 10
+      - head_dropout
+      # - decoder
+n_trials: 15
 save_models: False
 storage_uri: /dccstor/geofm-finetuning/carlosgomes/benchmark
 optimization_space:
@@ -59,21 +71,23 @@ optimization_space:
   #   - FCNDecoder
   #   - UperNetDecoder
   lr:
-    min: 1e-5
-    max: 1e-2
+    min: 5e-6
+    max: 1e-3
     type: real
+    log: true
   batch_size:
     - 8
+    - 16
     - 32
-    - 64
+    # - 64
   decoder_channels:
-    min: 16
-    max: 256
-    type: integer
+    #   - 32
+    - 64
+    - 128
   head_dropout:
-    min: 0
+    min: 0.4
     max: 0.8
     type: real
-  freeze_backbone:
-    - true
-    - false
+  # freeze_backbone:
+  #   - true
+  #   - false
