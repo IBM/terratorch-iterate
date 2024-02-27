@@ -1,5 +1,7 @@
 # Benchmarking
 
+:book: [Documentation](https://pages.github.ibm.com/GeoFM-Finetuning/benchmark/)
+
 A tool for benchmarking and hpo using [TerraTorch](https://github.ibm.com/GeoFM-Finetuning/terratorch).
 
 Leverages MLFlow for experiment logging, optuna for hyperparameter optimization and ray for parallelization.
