@@ -38,13 +38,21 @@ This tool allows you to design a benchmark test for a backbone that exists in `T
     - Several hyperparameter configurations
 
 To do this it relies on a configuration file where the benchmark is defined. This consists of:
+    
     - `experiment_name`: MLFLow experiment to run the benchmark on. This is the highest level grouping of runs in MLFLow.
+    
     - `benchmark_suffix`: Suffix that will be added to the name of the benchmark.
+    
     - `backbone`: Specification of the backbone to use.
+    
     - `tasks`: List of tasks to perform. Tasks specify parameters for the decoder, datamodule to be used and training parameters.
+    
     - `n_trials`: Number of trials to be carried out per task, in the case of hyperparameter tuning.
+    
     - `save_models`: Whether to save models. Defaults to False. (Setting this to true can take up a lot of space).
+    
     - `storage_uri`: Location to use for storage.
+    
     - `optimization_space`: Hyperparameter space to search over.
 
 See more details in the documentation, and [here](benchmark.yaml) for an example.
