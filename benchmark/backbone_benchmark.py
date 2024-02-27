@@ -1,3 +1,6 @@
+"""
+This module contains the high level functions for benchmarking on a single node.
+"""
 from functools import partial
 from typing import Any
 
@@ -12,101 +15,22 @@ from benchmark.model_fitting import fit_model, fit_model_with_hparams
 from benchmark.types import (
     Backbone,
     Task,
-    TaskTypeEnum,
+    build_model_args,
     optimization_space_type,
 )
 
-EXPERIMENT_NAME = "backbone_benchmark"
-
-
 # override Optuna's default logging to ERROR only
 optuna.logging.set_verbosity(optuna.logging.ERROR)
-
-
-# define a logging callback that will report on only new challenger parameter configurations if a
-# trial has usurped the state of 'best conditions'
-def champion_callback(study: optuna.Study, frozen_trial):
-    """
-    From: https://mlflow.org/docs/latest/traditional-ml/hyperparameter-tuning-with-child-runs/notebooks/hyperparameter-tuning-with-child-runs.html
-    Logging callback that will report when a new trial iteration improves upon existing
-    best trial values.
-
-    Note: This callback is not intended for use in distributed computing systems such as Spark
-    or Ray due to the micro-batch iterative implementation for distributing trials to a cluster's
-    workers or agents.
-    The race conditions with file system state management for distributed trials will render
-    inconsistent values with this callback.
-    """
-    if len(study.trials) == 0:
-        return
-    winner = study.user_attrs.get("winner", None)
-
-    if study.best_value and winner != study.best_value:
-        study.set_user_attr("winner", study.best_value)
-        if winner:
-            improvement_percent = (
-                abs(winner - study.best_value) / study.best_value
-            ) * 100
-            print(
-                "=" * 40
-                + "\n"
-                + f"Trial {frozen_trial.number} achieved value: {frozen_trial.value} with "
-                f"{improvement_percent: .4f}% improvement" + "\n" + "=" * 40 + "\n"
-            )
-        else:
-            print(
-                "=" * 40
-                + "\n"
-                + f"Initial trial {frozen_trial.number} achieved value: {frozen_trial.value}"
-                + "\n"
-                + "=" * 40
-                + "\n"
-            )
-
-
-def build_model_args(backbone: Backbone, task: Task) -> dict[str, Any]:
-    args = {}
-    args["backbone"] = backbone.backbone
-    for backbone_key, backbone_val in backbone.backbone_args.items():
-        args[f"backbone_{backbone_key}"] = backbone_val
-
-    # allow each task to specify / overwrite backbone keys
-    for backbone_key, backbone_val in task.backbone_args.items():
-        args[f"backbone_{backbone_key}"] = backbone_val
-    args["pretrained"] = False
-
-    args["decoder"] = task.decoder
-    for decoder_key, decoder_val in task.decoder_args.items():
-        args[f"decoder_{decoder_key}"] = decoder_val
-
-    for head_key, head_val in task.head_args.items():
-        args[f"head_{head_key}"] = head_val
-
-    args["in_channels"] = len(task.bands)
-    args["bands"] = task.bands
-
-    if task.type != TaskTypeEnum.regression:
-        if task.num_classes is not None:
-            args["num_classes"] = task.num_classes
-        else:
-            if hasattr(task.datamodule, "num_classes"):
-                args["num_classes"] = task.datamodule.num_classes
-            elif hasattr(task.datamodule.dataset, "classes"):
-                args["num_classes"] = len(task.datamodule.dataset.classes)
-            else:
-                raise Exception(
-                    f"Could not infer num_classes. Please provide it explicitly for task {task.name}"
-                )
-    return args
 
 
 def benchmark_backbone_on_task(
     backbone: Backbone,
     task: Task,
     storage_uri: str,
+    experiment_name: str,
     optimization_space: optimization_space_type | None = None,
     n_trials: int = 1,
-    save_models: bool = True,
+    save_models: bool = False,
 ) -> tuple[float, str | list[str] | None, dict[str, Any]]:
     with mlflow.start_run(
         run_name=f"{backbone.backbone}_{task.name}", nested=True
@@ -124,7 +48,7 @@ def benchmark_backbone_on_task(
                     lightning_task_class,
                     f"{run.info.run_name}",
                     storage_uri,
-                    EXPERIMENT_NAME,
+                    experiment_name,
                     save_models=save_models,
                 ),
                 {},
@@ -143,7 +67,7 @@ def benchmark_backbone_on_task(
             f"{backbone.backbone}_{task.name}",
             optimization_space,
             storage_uri,
-            EXPERIMENT_NAME,
+            experiment_name,
             save_models,
         )
         study.optimize(
@@ -158,16 +82,30 @@ def benchmark_backbone_on_task(
 
 def benchmark_backbone(
     backbone: Backbone,
+    experiment_name: str,
     tasks: list[Task],
     storage_uri: str,
     benchmark_suffix: str | None = None,
     n_trials: int = 1,
     optimization_space: optimization_space_type | None = None,
-    save_models: bool = True,
+    save_models: bool = False,
 ):
+    """Highest level function to benchmark a backbone using a single node
+
+    Args:
+        backbone (Backbone): Backbone to be used for the benchmark
+        experiment_name (str): Name of the MLFlow experiment to be used.
+        tasks (list[Task]): List of Tasks to benchmark over.
+        storage_uri (str): Path to storage location.
+        benchmark_suffix (str | None, optional): Suffix to be added to benchmark run name. Defaults to None.
+        n_trials (int, optional): Number of hyperparameter optimization trials to run. Defaults to 1.
+        optimization_space (optimization_space_type | None, optional): Parameters to optimize over. Should be a dictionary
+            of strings (parameter name) to list (discrete set of possibilities) or ParameterBounds, defining a range to optimize over.
+            Arguments belonging passed to the backbone, decoder or head should be given in the form `backbone_{argument}`, `decoder_{argument}` or `head_{argument}` Defaults to None.
+        save_models (bool, optional): Whether to save the model. Defaults to False.
+    """
     mlflow.set_tracking_uri(storage_uri)
-    mlflow.set_experiment(EXPERIMENT_NAME)
-    mlflow.pytorch.autolog(log_datasets=False)
+    mlflow.set_experiment(experiment_name)
     run_name = backbone.backbone
     if benchmark_suffix:
         run_name += f"_{benchmark_suffix}"
@@ -181,6 +119,7 @@ def benchmark_backbone(
                 backbone,
                 task,
                 storage_uri,
+                experiment_name,
                 optimization_space=optimization_space,
                 n_trials=n_trials,
                 save_models=save_models,

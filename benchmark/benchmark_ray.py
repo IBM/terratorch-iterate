@@ -1,69 +1,31 @@
-from functools import partial
+"""
+This module contains the high level functions for benchmarking on a single node.
+"""
 from typing import Any
 
 import mlflow
-import optuna
 import pandas as pd
 import ray
-import torch
 from jsonargparse import CLI
-from ray import tune
 from tabulate import tabulate
 
-from benchmark.model_fitting import fit_model_with_hparams, ray_tune_model
+from benchmark.model_fitting import ray_tune_model
 from benchmark.types import (
     Backbone,
     Task,
-    TaskTypeEnum,
+    build_model_args,
     optimization_space_type,
 )
-
-EXPERIMENT_NAME = "ray_backbone_benchmark"
-
-
-def build_model_args(backbone: Backbone, task: Task) -> dict[str, Any]:
-    args = {}
-    args["backbone"] = backbone.backbone
-    for backbone_key, backbone_val in backbone.backbone_args.items():
-        args[f"backbone_{backbone_key}"] = backbone_val
-
-    # allow each task to specify / overwrite backbone keys
-    for backbone_key, backbone_val in task.backbone_args.items():
-        args[f"backbone_{backbone_key}"] = backbone_val
-    args["pretrained"] = False
-
-    args["decoder"] = task.decoder
-    for decoder_key, decoder_val in task.decoder_args.items():
-        args[f"decoder_{decoder_key}"] = decoder_val
-
-    for head_key, head_val in task.head_args.items():
-        args[f"head_{head_key}"] = head_val
-
-    args["in_channels"] = len(task.bands)
-    args["bands"] = task.bands
-
-    if task.type != TaskTypeEnum.regression:
-        if task.num_classes is not None:
-            args["num_classes"] = task.num_classes
-        else:
-            if hasattr(task.datamodule, "num_classes"):
-                args["num_classes"] = task.datamodule.num_classes
-            elif hasattr(task.datamodule.dataset, "classes"):
-                args["num_classes"] = len(task.datamodule.dataset.classes)
-            else:
-                raise Exception(
-                    f"Could not infer num_classes. Please provide it explicitly for task {task.name}"
-                )
-    return args
 
 
 def benchmark_backbone_on_task(
     backbone: Backbone,
     task: Task,
     storage_uri: str,
+    experiment_name: str,
     optimization_space: optimization_space_type | None = None,
     n_trials: int = 1,
-    save_models: bool = True,
+    save_models: bool = False,
 ) -> tuple[float, str | list[str] | None, dict[str, Any] | None]:
     with mlflow.start_run(
         run_name=f"{backbone.backbone}_{task.name}", nested=True
@@ -83,9 +45,13 @@ def benchmark_backbone_on_task(
             f"{backbone.backbone}_{task.name}",
             optimization_space,
             storage_uri,
-            EXPERIMENT_NAME,
+            experiment_name,
             save_models,
             n_trials,
+        )
+
+        mlflow.log_table(
+            results.get_dataframe(), f"results_{task.name}.json", run.info.run_id
         )
 
         if results.get_best_result().metrics is None:
@@ -102,14 +68,30 @@ def benchmark_backbone(
     backbone: Backbone,
     tasks: list[Task],
     storage_uri: str,
+    experiment_name: str,
     benchmark_suffix: str | None = None,
     n_trials: int = 1,
     optimization_space: optimization_space_type | None = None,
-    save_models: bool = True,
+    save_models: bool = False,
 ):
-    ray.init(address=ray_address)
+    """Highest level function to benchmark a backbone using a ray cluster
+
+    Args:
+        ray_address (str): Address (without port) of ray head.
+        backbone (Backbone): Backbone to be used for the benchmark
+        experiment_name (str): Name of the MLFlow experiment to be used.
+        tasks (list[Task]): List of Tasks to benchmark over.
+        storage_uri (str): Path to storage location.
+        benchmark_suffix (str | None, optional): Suffix to be added to benchmark run name. Defaults to None.
+        n_trials (int, optional): Number of hyperparameter optimization trials to run. Defaults to 1.
+        optimization_space (optimization_space_type | None, optional): Parameters to optimize over. Should be a dictionary
+            of strings (parameter name) to list (discrete set of possibilities) or ParameterBounds, defining a range to optimize over.
+            Arguments belonging passed to the backbone, decoder or head should be given in the form `backbone_{argument}`, `decoder_{argument}` or `head_{argument}` Defaults to None.
+        save_models (bool, optional): Whether to save the model. Defaults to False.
+    """
+    ray.init(address=f"ray://{ray_address}:10001")
     mlflow.set_tracking_uri(storage_uri)
-    mlflow.set_experiment(EXPERIMENT_NAME)
+    mlflow.set_experiment(experiment_name)
     # mlflow.pytorch.autolog(log_datasets=False)
     run_name = backbone.backbone
     if benchmark_suffix:
@@ -124,6 +106,7 @@ def benchmark_backbone(
                 backbone,
                 task,
                 storage_uri,
+                experiment_name,
                 optimization_space=optimization_space,
                 n_trials=n_trials,
                 save_models=save_models,
