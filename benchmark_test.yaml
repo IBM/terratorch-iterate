@@ -23,21 +23,21 @@ tasks:
   #   datamodule: benchmark/resources/dataset_specifications/agb.yaml
   #   decoder: FCNDecoder
   #   metric: val/RMSE
-  # - name: sen1floods11
-  #   type: segmentation
-  #   loss: ce
-  #   ignore_index: -1
-  #   bands:
-  #     - BLUE
-  #     - GREEN
-  #     - RED
-  #     - NIR_NARROW
-  #     - SWIR_1
-  #     - SWIR_2
-  #   max_epochs: 1
-  #   datamodule: benchmark/resources/dataset_specifications/sen1floods11.yaml
-  #   decoder: FCNDecoder
-  #   metric: val/loss
+  - name: sen1floods11
+    type: segmentation
+    loss: ce
+    ignore_index: -1
+    bands:
+      - BLUE
+      - GREEN
+      - RED
+      - NIR_NARROW
+      - SWIR_1
+      - SWIR_2
+    max_epochs: 5
+    datamodule: benchmark/resources/dataset_specifications/sen1floods11.yaml
+    decoder: FCNDecoder
+    metric: val/loss
   - name: eurosat
     type: classification
     loss: ce
@@ -49,7 +49,7 @@ tasks:
       - SWIR_1
       - SWIR_2
     num_classes: 10
-    max_epochs: 1
+    max_epochs: 5
     datamodule: benchmark/resources/dataset_specifications/eurosat.yaml
     decoder: IdentityDecoder
     metric: val/loss
@@ -57,7 +57,7 @@ tasks:
   #   - decoder_channels
   #   - head_dropout
   # - decoder
-n_trials: 2
+n_trials: 10
 save_models: False
 storage_uri: /dccstor/geofm-finetuning/carlosgomes/benchmark/
 optimization_space:

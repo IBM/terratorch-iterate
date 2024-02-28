@@ -26,6 +26,7 @@ def benchmark_backbone_on_task(
     optimization_space: optimization_space_type | None = None,
     n_trials: int = 1,
     save_models: bool = False,
+    pruning_grace_period: int | None = 10,
 ) -> tuple[float, str | list[str] | None, dict[str, Any] | None]:
     with mlflow.start_run(
         run_name=f"{backbone.backbone}_{task.name}", nested=True
@@ -48,6 +49,7 @@ def benchmark_backbone_on_task(
             experiment_name,
             save_models,
             n_trials,
+            pruning_grace_period=pruning_grace_period,
         )
 
         mlflow.log_table(
@@ -64,7 +66,6 @@ def benchmark_backbone_on_task(
 
 
 def benchmark_backbone(
-    ray_address: str,
     backbone: Backbone,
     tasks: list[Task],
     storage_uri: str,
@@ -73,11 +74,11 @@ def benchmark_backbone(
     n_trials: int = 1,
     optimization_space: optimization_space_type | None = None,
     save_models: bool = False,
+    pruning_grace_period: int | None = 10,
 ):
     """Highest level function to benchmark a backbone using a ray cluster
 
     Args:
-        ray_address (str): Address (without port) of ray head.
         backbone (Backbone): Backbone to be used for the benchmark
         experiment_name (str): Name of the MLFlow experiment to be used.
         tasks (list[Task]): List of Tasks to benchmark over.
@@ -88,8 +89,9 @@ def benchmark_backbone(
             of strings (parameter name) to list (discrete set of possibilities) or ParameterBounds, defining a range to optimize over.
             Arguments belonging passed to the backbone, decoder or head should be given in the form `backbone_{argument}`, `decoder_{argument}` or `head_{argument}` Defaults to None.
         save_models (bool, optional): Whether to save the model. Defaults to False.
+        pruning_grace_period (int, optional): Minimum number of epochs after which to consider pruning run. Pass None to not do pruning. Defaults to 10.
     """
-    ray.init(address=f"ray://{ray_address}:10001")
+    ray.init()
     mlflow.set_tracking_uri(storage_uri)
     mlflow.set_experiment(experiment_name)
     # mlflow.pytorch.autolog(log_datasets=False)
@@ -110,6 +112,7 @@ def benchmark_backbone(
                 optimization_space=optimization_space,
                 n_trials=n_trials,
                 save_models=save_models,
+                pruning_grace_period=pruning_grace_period,
             )
             table_entries.append([task.name, metric_name, best_value, hparams])
 

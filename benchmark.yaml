@@ -63,7 +63,7 @@ tasks:
       - decoder_channels
       - head_dropout
       # - decoder
-n_trials: 15
+n_trials: 50
 save_models: False
 storage_uri: /dccstor/geofm-finetuning/carlosgomes/benchmark
 optimization_space:
@@ -88,6 +88,6 @@ optimization_space:
     min: 0.4
     max: 0.8
     type: real
-  # freeze_backbone:
-  #   - true
-  #   - false
+  freeze_backbone:
+    - true
+    - false
