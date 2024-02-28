@@ -3,6 +3,7 @@ This module contains all the logic for fitting models
 """
 import copy
 import os
+from pathlib import Path
 from typing import Any
 
 import lightning.pytorch as pl
@@ -10,7 +11,7 @@ import mlflow
 import optuna
 import torch
 from lightning import Callback, Trainer
-from lightning.pytorch.callbacks import ModelCheckpoint, RichProgressBar
+from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint, RichProgressBar
 from optuna.integration import PyTorchLightningPruningCallback
 from ray import train, tune
 from ray.air import CheckpointConfig, RunConfig, ScalingConfig
@@ -21,7 +22,7 @@ from ray.train.lightning import (
     prepare_trainer,
 )
 from ray.train.torch import TorchTrainer
-from ray.tune.schedulers import ASHAScheduler
+from ray.tune.schedulers import ASHAScheduler, FIFOScheduler
 from ray.tune.search import ConcurrencyLimiter
 from ray.tune.search.optuna import OptunaSearch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
@@ -105,6 +106,7 @@ def fit_model(
     batch_size: int | None = None,
     freeze_backbone: bool = False,
     save_models: bool = True,
+    pruning: bool = True,
 ) -> tuple[float, str]:
     if batch_size:
         task.datamodule.batch_size = (
@@ -124,13 +126,16 @@ def fit_model(
         ignore_index=task.ignore_index,
         scheduler=ReduceLROnPlateau,
     )
-    callbacks = [
+    callbacks: list[Callback] = [
         RichProgressBar(),
         # EarlyStopping(monitor="val/loss", patience=10),  # let user configure this?
     ]
 
-    if trial is not None:
-        callbacks.append(PyTorchLightningPruningCallback(trial, monitor="val/loss"))
+    if pruning:
+        if trial is not None:
+            callbacks.append(PyTorchLightningPruningCallback(trial, monitor="val/loss"))
+        else:
+            callbacks.append(EarlyStopping(monitor="val/loss", patience=10))
 
     if save_models:
         callbacks.append(ModelCheckpoint(monitor="val/loss"))
@@ -160,6 +165,7 @@ def fit_model_with_hparams(
     storage_uri: str,
     experiment_name: str,
     save_models: bool,
+    pruning: bool,
     trial: optuna.Trial,
 ) -> float:
     current_hparams: dict[str, int | float | str | bool] = {}
@@ -249,6 +255,7 @@ def ray_tune_model(
     experiment_name: str,
     save_models: bool,
     num_trials: int,
+    pruning_grace_period: int | None = 10,
 ) -> tune.ResultGrid:
     trainable = tune.with_parameters(
         ray_fit_model,
@@ -289,22 +296,38 @@ def ray_tune_model(
                         f"Type {space.type} not recognized. Suggest one of {[e.value for e in ParameterTypeEnum]}"
                     )
 
-    # Early stopping
-    scheduler = ASHAScheduler(
-        max_t=task.max_epochs, grace_period=min(task.max_epochs, 5), reduction_factor=2
-    )
+        # Early stopping
+        # this causes memory to not be released and trials to fail
+        # if pruning_grace_period is not None:
+        #     scheduler = ASHAScheduler(
+        #         max_t=task.max_epochs,
+        #         grace_period=min(task.max_epochs, pruning_grace_period),
+        #     )
+        # else:
+        scheduler = FIFOScheduler()
 
     scaling_config = ScalingConfig(
-        num_workers=1, use_gpu=True, resources_per_worker={"CPU": 6, "GPU": 1}
+        use_gpu=True,
+        num_workers=1,
+        resources_per_worker={"CPU": 6, "GPU": 1},
     )
+
+    ray_dir = Path(storage_uri).parent / "ray"
     ray_trainer = TorchTrainer(
         trainable,
         scaling_config=scaling_config,
-        run_config=RunConfig(
-            name=run_name,
-            storage_path=os.path.join(storage_uri, "../ray"),
-            checkpoint_config=CheckpointConfig(num_to_keep=1, checkpoint_frequency=0),
-        ),
+    )
+
+    reporter = tune.CLIReporter(
+        metric_columns={
+            task.metric: task.metric,
+            "val/loss": "Validation loss",
+            "train/loss": "Train loss",
+            "iter": "Epoch",
+        },
+        metric=task.metric,
+        mode="min",
+        sort_by_metric=True,
     )
 
     tuner = tune.Tuner(
@@ -313,13 +336,15 @@ def ray_tune_model(
             metric=task.metric,
             mode="min",  # let user choose this
             num_samples=num_trials,
-            search_alg=ConcurrencyLimiter(OptunaSearch(), max_concurrent=6),
+            # search_alg=ConcurrencyLimiter(OptunaSearch(), max_concurrent=8),
             scheduler=scheduler,
+            reuse_actors=False,
         ),
         run_config=RunConfig(
             name=run_name,
-            storage_path=os.path.join(storage_uri, "../ray"),
+            storage_path=str(ray_dir.absolute()),
             checkpoint_config=CheckpointConfig(num_to_keep=1, checkpoint_frequency=0),
+            progress_reporter=reporter,
         ),
         param_space={"train_loop_config": current_hparams},
     )
@@ -339,7 +364,11 @@ def ray_fit_model(
     experiment_name: str,
     parent_run_id: str,
     save_models: bool = True,
+    pruning_grace_period: int | None = 10,
 ) -> None:
+    # tune.utils.wait_for_gpu(
+    #     target_util=0.07, delay_s=10
+    # )  # sometimes process needs some time to release GPU
     lr = float(config.pop("lr", task.lr))
     batch_size = config.pop("batch_size", None)
     if batch_size is not None:
@@ -369,6 +398,9 @@ def ray_fit_model(
 
     if save_models:
         callbacks.append(ModelCheckpoint(monitor="val/loss"))
+
+    if pruning_grace_period is not None:
+        callbacks.append(EarlyStopping("val/loss", patience=pruning_grace_period))
 
     trainer = Trainer(
         strategy=RayDDPStrategy(find_unused_parameters=True),

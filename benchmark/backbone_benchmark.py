@@ -31,6 +31,7 @@ def benchmark_backbone_on_task(
     optimization_space: optimization_space_type | None = None,
     n_trials: int = 1,
     save_models: bool = False,
+    pruning: bool = True,
 ) -> tuple[float, str | list[str] | None, dict[str, Any]]:
     with mlflow.start_run(
         run_name=f"{backbone.backbone}_{task.name}", nested=True
@@ -50,6 +51,7 @@ def benchmark_backbone_on_task(
                     storage_uri,
                     experiment_name,
                     save_models=save_models,
+                    pruning=pruning,
                 ),
                 {},
             )
@@ -69,6 +71,7 @@ def benchmark_backbone_on_task(
             storage_uri,
             experiment_name,
             save_models,
+            pruning,
         )
         study.optimize(
             objective,
@@ -89,6 +92,7 @@ def benchmark_backbone(
     n_trials: int = 1,
     optimization_space: optimization_space_type | None = None,
     save_models: bool = False,
+    pruning: bool = True,
 ):
     """Highest level function to benchmark a backbone using a single node
 
@@ -103,6 +107,7 @@ def benchmark_backbone(
             of strings (parameter name) to list (discrete set of possibilities) or ParameterBounds, defining a range to optimize over.
             Arguments belonging passed to the backbone, decoder or head should be given in the form `backbone_{argument}`, `decoder_{argument}` or `head_{argument}` Defaults to None.
         save_models (bool, optional): Whether to save the model. Defaults to False.
+        pruning (bool, optional): Whether to prune epochs if they dont improve after 10 epochs. Defaults to True.
     """
     mlflow.set_tracking_uri(storage_uri)
     mlflow.set_experiment(experiment_name)
@@ -123,6 +128,7 @@ def benchmark_backbone(
                 optimization_space=optimization_space,
                 n_trials=n_trials,
                 save_models=save_models,
+                pruning=pruning,
             )
             table_entries.append([task.name, metric_name, best_value, hparams])
 

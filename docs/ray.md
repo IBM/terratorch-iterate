@@ -18,20 +18,29 @@ export RAY_PORT=20022 # or any other port you like
 jbsub -queue x86_24h -cores 2 -mem 32g ray start --head --port $RAY_PORT --dashboard-port $((RAY_PORT + 1)) --include-dashboard True --dashboard-host 0.0.0.0 --object-store-memory 10000000000 --num-cpus 0 --num-gpus 0 --temp-dir /tmp
 ```
 
-Find out the address of your ray head with `bpeek <ccc process number>`
+Find out the address of your ray head with `bpeek <ccc process number>` and store it in an environment variable with
 This will also tell you the url where you can check the ray cluster.
+
+```sh
+export RAY_ADDRESS="<address>"
+```
 
 Then, launch your workers:
 
 ```sh
-jbsub -queue <ccc_queue> -cores <nodes x cpu + gpu> -mem <mem> ./start_ray_workers.sh -a <ray_head_ip>:$RAY_PORT
+jbsub -queue <ccc_queue> -cores <nodes x (min 6 cpu per gpu + 1 cpu per node) + gpu> -mem <mem> ./start_ray_workers.sh -a $RAY_ADDRESS
 ```
 
 You may have to run `chmod +x start_ray_workers.sh`.
-You can provide multiple nodes in the command above. Each GPU will be used to launch a task. For each GPU, make sure there are at least 6 CPUs cores.
+You can provide multiple nodes in the command above. Each GPU will be used to launch a task. For each GPU, make sure there are at least 7 CPUs cores.
+
+At any time you may add more workers to the cluster which will be assigned trials to run.
 
 ## Run the script
 
-You can now run `ray_benchmark <ray_head_ip_with_no_port> --config <your_config>`.
+You can now run `ray job submit --working-dir . -- poetry run ray_benchmark --config <your benchmark> --no-wait`.
 
+You can then use ray job to interact with your job. See [the ray quickstart guide](https://docs.ray.io/en/latest/cluster/running-applications/job-submission/quickstart.html) for more examples.
+
+More easily, you can use the ray dashboard and MLFlow to check your job.
 ## :::benchmark.benchmark_ray.benchmark_backbone
