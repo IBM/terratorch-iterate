@@ -28,7 +28,7 @@ export RAY_ADDRESS="<address>"
 Then, launch your workers:
 
 ```sh
-jbsub -queue <ccc_queue> -cores <nodes x (min 6 cpu per gpu + 1 cpu per node) + gpu> -mem <mem> ./start_ray_workers.sh -a $RAY_ADDRESS
+jbsub -queue <ccc_queue> -cores <nodes x (min 6 cpu per gpu + 1 cpu per node) + gpu> -mem <mem> ./start_ray_workers.sh -a <ray_head_ip>
 ```
 
 You may have to run `chmod +x start_ray_workers.sh`.
@@ -38,7 +38,7 @@ At any time you may add more workers to the cluster which will be assigned trial
 
 ## Run the script
 
-You can now run `ray job submit --working-dir . -- poetry run ray_benchmark --config <your benchmark> --no-wait`.
+You can now run `ray job submit --no-wait --working-dir . -- "ray_benchmark --config <your benchmark>"`.
 
 You can then use ray job to interact with your job. See [the ray quickstart guide](https://docs.ray.io/en/latest/cluster/running-applications/job-submission/quickstart.html) for more examples.
 
