@@ -1,4 +1,4 @@
-benchmark_suffix: test_benchmark
+benchmark_suffix: test_benchmark_logging
 experiment_name: benchmark_test
 pruning_grace_period: 5
 backbone:
@@ -58,7 +58,7 @@ tasks:
   #   - decoder_channels
   #   - head_dropout
   # - decoder
-n_trials: 10
+n_trials: 4
 save_models: False
 storage_uri: /dccstor/geofm-finetuning/carlosgomes/benchmark/
 optimization_space:
@@ -70,10 +70,12 @@ optimization_space:
     max: 1e-3
     type: real
     log: true
-  # batch_size:
-  #   - 8
-  #   - 32
-  #   - 64
+  batch_size:
+    - 2
+    - 4
+    - 8
+    # - 32
+    # - 64
   # decoder_channels:
   #   - 32
   #   - 64
@@ -82,6 +84,6 @@ optimization_space:
   #   min: 0
   #   max: 0.8
   #   type: real
-  # freeze_backbone:
-  #   - true
-  #   - false
+  freeze_backbone:
+    - true
+    - false

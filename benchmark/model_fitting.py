@@ -13,6 +13,7 @@ import ray
 import torch
 from lightning import Callback, Trainer
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint, RichProgressBar
+from lightning.pytorch.loggers.mlflow import MLFlowLogger
 from optuna.integration import PyTorchLightningPruningCallback
 from ray import train, tune
 from ray.air import CheckpointConfig, RunConfig, ScalingConfig
@@ -20,6 +21,7 @@ from ray.train import report
 from ray.train.lightning import (
     RayDDPStrategy,
     RayLightningEnvironment,
+    RayTrainReportCallback,
     prepare_trainer,
 )
 from ray.train.torch import TorchTrainer
@@ -39,7 +41,9 @@ from benchmark.types import (
     valid_task_types,
 )
 
-os.environ["TUNE_DISABLE_AUTO_CALLBACK_LOGGERS"] = "1"  # disable tune loggers
+os.environ[
+    "TUNE_DISABLE_AUTO_CALLBACK_LOGGERS"
+] = "1"  # disable tune loggers, will add csv and json manually. If this is not here, it will log to tensorboard automatically
 
 
 def inject_hparams(model_setup: dict[str, Any], model_hparams: dict[str, Any]):
@@ -73,14 +77,14 @@ def launch_training(
         mlflow.set_tag("mlflow.parentRunId", parent_run_id)
         # explicitly log batch_size. Since it is not a model param, it will not be logged
         mlflow.log_param("batch_size", datamodule.batch_size)
-        mlflow.pytorch.autolog(log_datasets=False, log_models=False)
+        # mlflow.pytorch.autolog(log_datasets=False, log_models=False)
 
-        # trainer.logger = MLFlowLogger(
-        #     experiment_name=experiment_name,
-        #     run_id=run.info.run_id,
-        #     save_dir=storage_uri,
-        #     log_model=True,
-        # )
+        trainer.logger = MLFlowLogger(
+            experiment_name=experiment_name,
+            run_id=run.info.run_id,
+            save_dir=storage_uri,
+            log_model=True,
+        )
         trainer.fit(task, datamodule=datamodule)
         client = mlflow.tracking.MlflowClient(
             tracking_uri=storage_uri,
@@ -320,24 +324,28 @@ def ray_tune_model(
         scaling_config=scaling_config,
     )
 
+    mode = "min"  # let user choose this
     tuner = tune.Tuner(
         ray_trainer,
         tune_config=tune.TuneConfig(
             metric=task.metric,
-            mode="min",  # let user choose this
+            mode=mode,
             num_samples=num_trials,
             search_alg=OptunaSearch(),
             scheduler=scheduler,
             reuse_actors=False,
         ),
         run_config=RunConfig(
-            name=run_name,
+            name=mlflow.active_run().info.run_name,
             storage_path=str(ray_dir.absolute()),
-            checkpoint_config=CheckpointConfig(num_to_keep=1, checkpoint_frequency=0),
+            local_dir=str(ray_dir.absolute()),
+            callbacks=[
+                tune.logger.CSVLoggerCallback(),
+                tune.logger.JsonLoggerCallback(),
+            ],
         ),
         param_space={"train_loop_config": current_hparams},
     )
-
     results = tuner.fit()
     return results
 
@@ -383,6 +391,7 @@ def ray_fit_model(
         # scheduler_hparams={"patience": 5},
     )
     callbacks: list[Callback] = [RayReportCallback()]
+    # callbacks: list[Callback] = [RayTrainReportCallback()]
 
     if save_models:
         callbacks.append(ModelCheckpoint(monitor="val/loss"))
@@ -394,22 +403,29 @@ def ray_fit_model(
         strategy=RayDDPStrategy(find_unused_parameters=True),
         callbacks=callbacks,
         plugins=[RayLightningEnvironment()],
-        enable_checkpointing=save_models,
         accelerator="auto",
         devices="auto",
         enable_progress_bar=False,
         max_epochs=task.max_epochs,
     )
+
     trainer = prepare_trainer(trainer)
 
     mlflow.set_tracking_uri(storage_uri)
     mlflow.set_experiment(experiment_name)
 
-    with mlflow.start_run(nested=True):
+    with mlflow.start_run(nested=True) as run:
         # hack for nestedness
         mlflow.set_tag("mlflow.parentRunId", parent_run_id)
 
-        mlflow.pytorch.autolog(log_datasets=False, log_models=False)
+        trainer.logger = MLFlowLogger(
+            experiment_name=experiment_name,
+            run_id=run.info.run_id,
+            save_dir=storage_uri,
+            log_model=False,
+        )
+
+        # mlflow.pytorch.autolog(log_datasets=False, log_models=False)
         # explicitly log batch_size. Since it is not a model param, it will not be logged
         mlflow.log_param("batch_size", task.datamodule.batch_size)
         trainer.fit(lightning_task, datamodule=task.datamodule)
