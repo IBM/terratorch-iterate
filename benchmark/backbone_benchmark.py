@@ -9,6 +9,7 @@ import optuna
 import pandas as pd
 import torch
 from jsonargparse import CLI
+from optuna.pruners import HyperbandPruner
 from tabulate import tabulate
 
 from benchmark.model_fitting import fit_model, fit_model_with_hparams
@@ -19,9 +20,6 @@ from benchmark.types import (
     optimization_space_type,
 )
 
-# override Optuna's default logging to ERROR only
-optuna.logging.set_verbosity(optuna.logging.ERROR)
-
 
 def benchmark_backbone_on_task(
     backbone: Backbone,
@@ -31,7 +29,6 @@ def benchmark_backbone_on_task(
     optimization_space: optimization_space_type | None = None,
     n_trials: int = 1,
     save_models: bool = False,
-    pruning: bool = True,
 ) -> tuple[float, str | list[str] | None, dict[str, Any]]:
     with mlflow.start_run(
         run_name=f"{backbone.backbone}_{task.name}", nested=True
@@ -52,14 +49,14 @@ def benchmark_backbone_on_task(
                     storage_uri,
                     run.info.run_id,
                     save_models=save_models,
-                    pruning=pruning,
                 ),
                 {},
             )
 
         # if optimization parameters specified, do hyperparameter tuning
         study = optuna.create_study(
-            direction="minimize"  # in the future may want to allow user to specify this
+            direction="minimize",  # in the future may want to allow user to specify this
+            pruner=HyperbandPruner(),
         )
         objective = partial(
             fit_model_with_hparams,
@@ -73,7 +70,6 @@ def benchmark_backbone_on_task(
             storage_uri,
             run.info.run_id,
             save_models,
-            pruning,
         )
         study.optimize(
             objective,
@@ -81,7 +77,8 @@ def benchmark_backbone_on_task(
             # callbacks=[champion_callback],
             catch=[torch.cuda.OutOfMemoryError],  # add a few more here?
         )
-
+        mlflow.log_params(study.best_trial.params)
+        mlflow.log_metric(f"best_{task.metric}", study.best_value)
         return study.best_value, task.metric, study.best_trial.params
 
 
@@ -94,7 +91,6 @@ def benchmark_backbone(
     n_trials: int = 1,
     optimization_space: optimization_space_type | None = None,
     save_models: bool = False,
-    pruning: bool = True,
 ):
     """Highest level function to benchmark a backbone using a single node
 
@@ -109,7 +105,6 @@ def benchmark_backbone(
             of strings (parameter name) to list (discrete set of possibilities) or ParameterBounds, defining a range to optimize over.
             Arguments belonging passed to the backbone, decoder or head should be given in the form `backbone_{argument}`, `decoder_{argument}` or `head_{argument}` Defaults to None.
         save_models (bool, optional): Whether to save the model. Defaults to False.
-        pruning (bool, optional): Whether to prune epochs if they dont improve after 10 epochs. Defaults to True.
     """
     mlflow.set_tracking_uri(storage_uri)
     mlflow.set_experiment(experiment_name)
@@ -130,7 +125,6 @@ def benchmark_backbone(
                 optimization_space=optimization_space,
                 n_trials=n_trials,
                 save_models=save_models,
-                pruning=pruning,
             )
             table_entries.append([task.name, metric_name, best_value, hparams])
 

@@ -37,6 +37,8 @@ gputil = "^1.4.0"
 asyncio = "^3.4.3"
 opencv-python = "^4.9.0.80"
 h5py = "^3.10.0"
+hpbandster = "^0.7.4"
+configspace = "^0.7.1"
 
 [tool.poetry.extras]
 test = ["pytest", "pytest-cov"]

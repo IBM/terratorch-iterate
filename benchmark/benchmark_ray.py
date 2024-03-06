@@ -1,13 +1,11 @@
 """
 This module contains the high level functions for benchmarking on a single node.
 """
-from typing import Any
 
 import mlflow
 import pandas as pd
 import ray
 from jsonargparse import CLI
-from ray.util.multiprocessing import Pool
 from tabulate import tabulate
 
 from benchmark.model_fitting import fit_model, ray_tune_model, valid_task_types
@@ -27,7 +25,6 @@ def benchmark_backbone_on_task(
     optimization_space: optimization_space_type | None = None,
     n_trials: int = 1,
     save_models: bool = False,
-    pruning_grace_period: int | None = 10,
 ) -> dict:
     with mlflow.start_run(
         run_name=f"{backbone.backbone}_{task.name}", nested=True
@@ -49,7 +46,6 @@ def benchmark_backbone_on_task(
             experiment_name,
             save_models,
             n_trials,
-            pruning_grace_period=pruning_grace_period,
         )
 
         mlflow.log_table(
@@ -57,10 +53,17 @@ def benchmark_backbone_on_task(
         )
         if results.get_best_result().metrics is None:
             raise Exception("Best result metrics were none")
+        if results.get_best_result().config is None:
+            raise Exception("Best result config was none")
+
+        mlflow.log_params(results.get_best_result().config["train_loop_config"])
+        mlflow.log_metric(
+            f"best_{task.metric}", results.get_best_result().metrics[task.metric]
+        )
         return {
             "best_result": results.get_best_result().metrics[task.metric],
             "metric": task.metric,
-            "best_config": results.get_best_result().config,
+            "best_config": results.get_best_result().config["train_loop_config"],
         }
 
 
@@ -74,7 +77,6 @@ def remote_fit(
     storage_uri: str,
     experiment_name: str,
     parent_run_id: str,
-    pruning: bool,
     save_models: bool,
 ) -> float:
     mlflow.set_tracking_uri(storage_uri)
@@ -85,9 +87,9 @@ def remote_fit(
         task,
         lightning_task_class,
         run_name,
+        experiment_name,
         storage_uri,
         parent_run_id,
-        pruning=pruning,
         save_models=save_models,
     )[0]
 
@@ -101,7 +103,6 @@ def benchmark_backbone(
     n_trials: int = 1,
     optimization_space: optimization_space_type | None = None,
     save_models: bool = False,
-    pruning_grace_period: int | None = 10,
 ):
     """Highest level function to benchmark a backbone using a ray cluster
 
@@ -116,7 +117,6 @@ def benchmark_backbone(
             of strings (parameter name) to list (discrete set of possibilities) or ParameterBounds, defining a range to optimize over.
             Arguments belonging passed to the backbone, decoder or head should be given in the form `backbone_{argument}`, `decoder_{argument}` or `head_{argument}` Defaults to None.
         save_models (bool, optional): Whether to save the model. Defaults to False.
-        pruning_grace_period (int, optional): Minimum number of epochs after which to consider pruning run. Pass None to not do pruning. Defaults to 10.
     """
     ray.init()
     mlflow.set_tracking_uri(storage_uri)
@@ -149,7 +149,6 @@ def benchmark_backbone(
                         storage_uri,
                         experiment_name,
                         run.info.run_id,
-                        pruning_grace_period is not None,
                         save_models,
                     )
                 )
@@ -176,7 +175,6 @@ def benchmark_backbone(
                         optimization_space=optimization_space,
                         n_trials=n_trials,
                         save_models=save_models,
-                        pruning_grace_period=pruning_grace_period,
                     )
                 )
 
@@ -185,7 +183,7 @@ def benchmark_backbone(
                     task.name,
                     result["metric"],
                     result["best_result"],
-                    result["best_config"],
+                    str(result["best_config"]),
                 ]
                 for task, result in zip(tasks, results)
             ]

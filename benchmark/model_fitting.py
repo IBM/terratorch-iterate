@@ -9,24 +9,30 @@ from typing import Any
 import lightning.pytorch as pl
 import mlflow
 import optuna
-import ray
 import torch
 from lightning import Callback, Trainer
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint, RichProgressBar
 from lightning.pytorch.loggers.mlflow import MLFlowLogger
 from optuna.integration import PyTorchLightningPruningCallback
-from ray import train, tune
-from ray.air import CheckpointConfig, RunConfig, ScalingConfig
-from ray.train import report
-from ray.train.lightning import (
-    RayDDPStrategy,
-    RayLightningEnvironment,
-    RayTrainReportCallback,
-    prepare_trainer,
-)
-from ray.train.torch import TorchTrainer
-from ray.tune.schedulers import ASHAScheduler, FIFOScheduler
-from ray.tune.search import ConcurrencyLimiter
+from ray import tune
+from ray.air import CheckpointConfig, RunConfig
+
+# for ddp in the future if required
+# import ray
+# from ray.train import report
+# from ray import train
+# from ray.air import CheckpointConfig, ScalingConfig
+# from ray.train.lightning import (
+#     RayDeepSpeedStrategy,
+#     RayLightningEnvironment,
+#     RayTrainReportCallback,
+#     prepare_trainer,
+# )
+# from ray.train.torch import TorchTrainer
+from ray.tune.integration.pytorch_lightning import TuneReportCheckpointCallback
+from ray.tune.schedulers import FIFOScheduler
+from ray.tune.schedulers.hb_bohb import HyperBandForBOHB
+from ray.tune.search.bohb import TuneBOHB
 from ray.tune.search.optuna import OptunaSearch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torchgeo.datamodules import BaseDataModule
@@ -44,6 +50,11 @@ from benchmark.types import (
 os.environ[
     "TUNE_DISABLE_AUTO_CALLBACK_LOGGERS"
 ] = "1"  # disable tune loggers, will add csv and json manually. If this is not here, it will log to tensorboard automatically
+
+
+class _TuneReportCallback(TuneReportCheckpointCallback, pl.Callback):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
 
 def inject_hparams(model_setup: dict[str, Any], model_hparams: dict[str, Any]):
@@ -78,7 +89,6 @@ def launch_training(
         mlflow.set_tag("mlflow.parentRunId", parent_run_id)
         # explicitly log batch_size. Since it is not a model param, it will not be logged
         mlflow.log_param("batch_size", datamodule.batch_size)
-        # mlflow.pytorch.autolog(log_datasets=False, log_models=False)
 
         trainer.logger = MLFlowLogger(
             experiment_name=experiment_name,
@@ -114,7 +124,6 @@ def fit_model(
     batch_size: int | None = None,
     freeze_backbone: bool = False,
     save_models: bool = False,
-    pruning: bool = True,
 ) -> tuple[float, str]:
     if batch_size:
         task.datamodule.batch_size = (
@@ -136,14 +145,11 @@ def fit_model(
     )
     callbacks: list[Callback] = [
         RichProgressBar(),
-        # EarlyStopping(monitor="val/loss", patience=10),  # let user configure this?
+        EarlyStopping(monitor="val/loss", patience=10),  # let user configure this?
     ]
 
-    if pruning:
-        if trial is not None:
-            callbacks.append(PyTorchLightningPruningCallback(trial, monitor="val/loss"))
-        else:
-            callbacks.append(EarlyStopping(monitor="val/loss", patience=10))
+    if task.early_prune and trial is not None:
+        callbacks.append(PyTorchLightningPruningCallback(trial, monitor="val/loss"))
 
     if save_models:
         callbacks.append(ModelCheckpoint(monitor="val/loss"))
@@ -175,7 +181,6 @@ def fit_model_with_hparams(
     storage_uri: str,
     parent_run_id: str,
     save_models: bool,
-    pruning: bool,
     trial: optuna.Trial,
 ) -> float:
     current_hparams: dict[str, int | float | str | bool] = {}
@@ -225,7 +230,6 @@ def fit_model_with_hparams(
         batch_size=batch_size,
         freeze_backbone=freeze_backbone,
         save_models=save_models,
-        pruning=pruning,
     )[0]  # return only the metric value for optuna
 
 
@@ -234,26 +238,26 @@ def fit_model_with_hparams(
 ###########################################
 
 
-class RayReportCallback(pl.callbacks.Callback):
-    """Like Ray's Report Callback but with no checkpointing"""
+# class RayReportCallback(pl.callbacks.Callback):
+#     """Like Ray's Report Callback but with no checkpointing"""
 
-    def __init__(self) -> None:
-        super().__init__()
-        self.trial_name = train.get_context().get_trial_name()
-        self.local_rank = train.get_context().get_local_rank()
+#     def __init__(self) -> None:
+#         super().__init__()
+#         self.trial_name = train.get_context().get_trial_name()
+#         self.local_rank = train.get_context().get_local_rank()
 
-    def on_train_epoch_end(self, trainer, pl_module) -> None:
-        # Creates a checkpoint dir with fixed name
-        metrics = trainer.callback_metrics
-        metrics = {k: v.item() for k, v in metrics.items()}
+#     def on_train_epoch_end(self, trainer, pl_module) -> None:
+#         # Creates a checkpoint dir with fixed name
+#         metrics = trainer.callback_metrics
+#         metrics = {k: v.item() for k, v in metrics.items()}
 
-        # (Optional) Add customized metrics
-        metrics["epoch"] = trainer.current_epoch
-        metrics["step"] = trainer.global_step
+#         # (Optional) Add customized metrics
+#         metrics["epoch"] = trainer.current_epoch
+#         metrics["step"] = trainer.global_step
 
-        # Add a barrier to ensure all workers finished reporting here
-        torch.distributed.barrier()
-        report(metrics=metrics)
+#         # Add a barrier to ensure all workers finished reporting here
+#         torch.distributed.barrier()
+#         report(metrics=metrics)
 
 
 def ray_tune_model(
@@ -266,7 +270,6 @@ def ray_tune_model(
     experiment_name: str,
     save_models: bool,
     num_trials: int,
-    pruning_grace_period: int | None = 10,
 ) -> tune.ResultGrid:
     trainable = tune.with_parameters(
         ray_fit_model,
@@ -307,36 +310,44 @@ def ray_tune_model(
                     )
 
         # Early stopping
-        # this causes memory to not be released and trials to fail
-        # if pruning_grace_period is not None:
-        #     scheduler = ASHAScheduler(
-        #         max_t=task.max_epochs,
-        #         grace_period=min(task.max_epochs, pruning_grace_period),
-        #     )
-        # else:
-        scheduler = FIFOScheduler()
+        # It is unclear if this is working properly when checkpoints are disabled
+        if task.early_prune:
+            search_alg = TuneBOHB()
+            scheduler = HyperBandForBOHB(
+                time_attr="training_iteration",
+                max_t=task.max_epochs,
+                reduction_factor=2,
+                stop_last_trials=False,
+            )
+        else:
+            scheduler = FIFOScheduler()
+            search_alg = OptunaSearch()
 
-    scaling_config = ScalingConfig(
-        use_gpu=True,
-        num_workers=1,
-        resources_per_worker={"CPU": 4, "GPU": 1},
-        trainer_resources={"CPU": 1, "GPU": 0},
-    )
+    # for ddp if required in the future
+    # scaling_config = ScalingConfig(
+    #     use_gpu=True,
+    #     num_workers=1,
+    #     resources_per_worker={"CPU": 4, "GPU": 1},
+    #     trainer_resources={"CPU": 1, "GPU": 0},
+    # )
+    # ray_trainer = TorchTrainer(
+    #     trainable,
+    #     scaling_config=scaling_config,
+    # )
 
     ray_dir = Path(storage_uri).parent / "ray"
-    ray_trainer = TorchTrainer(
-        trainable,
-        scaling_config=scaling_config,
+    trainable_with_resources = tune.with_resources(
+        trainable, resources={"cpu": 4, "gpu": 1}
     )
 
     mode = "min"  # let user choose this
     tuner = tune.Tuner(
-        ray_trainer,
+        trainable_with_resources,
         tune_config=tune.TuneConfig(
             metric=task.metric,
             mode=mode,
             num_samples=num_trials,
-            search_alg=OptunaSearch(),
+            search_alg=search_alg,
             scheduler=scheduler,
             reuse_actors=False,
         ),
@@ -348,6 +359,14 @@ def ray_tune_model(
                 tune.logger.CSVLoggerCallback(),
                 tune.logger.JsonLoggerCallback(),
             ],
+            checkpoint_config=CheckpointConfig(
+                num_to_keep=1,
+                checkpoint_score_attribute=task.metric,
+                checkpoint_score_order=mode,
+            )
+            if save_models
+            else None,
+            stop={"training_iteration": task.max_epochs},
         ),
         param_space={"train_loop_config": current_hparams},
     )
@@ -365,7 +384,6 @@ def ray_fit_model(
     experiment_name: str,
     parent_run_id: str,
     save_models: bool = True,
-    pruning_grace_period: int | None = 10,
 ) -> None:
     tune.utils.wait_for_gpu(
         target_util=0.07, delay_s=10, retry=50
@@ -395,26 +413,28 @@ def ray_fit_model(
         scheduler=ReduceLROnPlateau,
         # scheduler_hparams={"patience": 5},
     )
-    callbacks: list[Callback] = [RayReportCallback()]
-    # callbacks: list[Callback] = [RayTrainReportCallback()]
+    callbacks: list[Callback] = [
+        # RayReportCallback(), for ddp if required in the future
+        _TuneReportCallback(metrics=[task.metric], save_checkpoints=save_models),
+        EarlyStopping("val/loss", patience=10),  # let user determine this?
+    ]
 
-    if save_models:
-        callbacks.append(ModelCheckpoint(monitor="val/loss"))
-
-    if pruning_grace_period is not None:
-        callbacks.append(EarlyStopping("val/loss", patience=pruning_grace_period))
+    # if save_models:
+    #     callbacks.append(ModelCheckpoint(monitor="val/loss"))
 
     trainer = Trainer(
-        strategy=RayDDPStrategy(find_unused_parameters=True),
+        # commented out is for ddp if required in the future
+        # strategy=RayDeepSpeedStrategy(),
         callbacks=callbacks,
-        plugins=[RayLightningEnvironment()],
-        accelerator="auto",
-        devices="auto",
+        # plugins=[RayLightningEnvironment()],
+        # accelerator="auto",
+        # devices="auto",
+        devices=1,
         enable_progress_bar=False,
         max_epochs=task.max_epochs,
     )
 
-    trainer = prepare_trainer(trainer)
+    # trainer = prepare_trainer(trainer)
 
     mlflow.set_tracking_uri(storage_uri)
     mlflow.set_experiment(experiment_name)
@@ -430,7 +450,6 @@ def ray_fit_model(
             log_model=False,
         )
 
-        # mlflow.pytorch.autolog(log_datasets=False, log_models=False)
         # explicitly log batch_size. Since it is not a model param, it will not be logged
         mlflow.log_param("batch_size", task.datamodule.batch_size)
         trainer.fit(lightning_task, datamodule=task.datamodule)

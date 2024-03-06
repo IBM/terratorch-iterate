@@ -124,6 +124,7 @@ class Task:
         decoder_args (dict): Arguments to be passed to the decoder.
         head_args (dict): Arguments to be passed to the head.
         ignore_index (int | None): Index to ignore in task.
+        early_prune (bool): Whether to prune unpromising runs early. When this is true, a larger number of trials can / should be used. Defaults to False.
         optimization_except (set[str]): Keys from hyperparameter space to ignore for this task.
     """
 
@@ -142,6 +143,7 @@ class Task:
     decoder_args: dict[str, Any] = field(default_factory=dict)
     head_args: dict[str, Any] = field(default_factory=dict)
     ignore_index: int | None = None
+    early_prune: bool = False
     optimization_except: set[str] = field(default_factory=set)
 
 

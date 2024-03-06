@@ -1,6 +1,5 @@
-benchmark_suffix: test_benchmark_logging
+benchmark_suffix: test_benchmark_bohb_save_models
 experiment_name: benchmark_test
-pruning_grace_period: 5
 backbone:
   backbone: prithvi_swin_B
 tasks:
@@ -58,8 +57,8 @@ tasks:
   #   - decoder_channels
   #   - head_dropout
   # - decoder
-n_trials: 4
-save_models: False
+n_trials: 20
+save_models: true
 storage_uri: /dccstor/geofm-finetuning/carlosgomes/benchmark/
 optimization_space:
   # decoder:
