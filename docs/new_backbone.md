@@ -14,7 +14,7 @@ To use a new set of weights, we can therefore use the same strategy we would in 
 backbone:
     backbone_args:
         pretrained_cfg_overlay:
-                        file: <path to weights>
+            file: <path to weights>
 ```
 
 Other factories may have other methods of passing pretrained weights paths.
