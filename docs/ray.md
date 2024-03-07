@@ -8,9 +8,12 @@ Instructions for CCC follow.
     Running anything on a ray cluster is bound to bring about more cryptic messages and harder debugging.
     Please make sure your benchmark works for the single node case first,
 
-
 !!! warning
     This tool uses bayesian optimization, and will parallelize it over the number of GPUs provided. However, bayesian parallelization does not parallelize super well, so using a large number of GPUs is not reccomended.
+
+    With no HPO, this will parallelize over tasks.
+
+    With HPO, this will parallelize only within each task. Parallelizing within each task and across tasks seems quite challenging and is [not currently officially supported by ray tune](https://docs.ray.io/en/latest/tune/faq.html#how-can-i-run-multiple-ray-tune-jobs-on-the-same-cluster-at-the-same-time-multi-tenancy)
 
 !!! warning
     It is unclear if pruning with ray parallelization works without saving models. You may need to have this enabled for correct results.

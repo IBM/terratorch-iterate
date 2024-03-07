@@ -38,7 +38,7 @@ tasks:
     datamodule: benchmark/resources/dataset_specifications/sen1floods11.yaml
     decoder: FCNDecoder
     metric: val/loss
-    early_prune: false
+    early_prune: true
   - name: eurosat
     type: classification
     loss: ce
@@ -54,7 +54,7 @@ tasks:
     datamodule: benchmark/resources/dataset_specifications/eurosat.yaml
     decoder: IdentityDecoder
     metric: val/loss
-    early_prune: false
+    early_prune: true
   # optimization_except:
   #   - decoder_channels
   #   - head_dropout

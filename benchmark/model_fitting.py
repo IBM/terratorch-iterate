@@ -3,8 +3,11 @@ This module contains all the logic for fitting models
 """
 import copy
 import os
+import types
+from fnmatch import fnmatchcase
+from functools import wraps
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import lightning.pytorch as pl
 import mlflow
@@ -264,12 +267,6 @@ def fit_model_with_hparams(
 #         report(metrics=metrics)
 
 
-class RayLogArtifactsMlFlowCallback(LoggerCallback):
-    def log_trial_end(self, trial: Trial, failed: bool = False):
-        mlflow.log_artifacts(trial.local_dir)
-        return super().log_trial_end(trial, failed)
-
-
 def ray_tune_model(
     backbone: Backbone,
     task: Task,
@@ -338,6 +335,21 @@ def ray_tune_model(
             scheduler = FIFOScheduler()
             search_alg = OptunaSearch()
 
+    # monkey patch scheduler to add trial storage dir
+    def decorate_to_add_trial_info(fn: Callable):
+        old_fn = fn
+
+        @wraps(fn)
+        def new_func(self, tune_controller, trial: Trial):
+            trial.config["trial_local_dir"] = trial.local_dir
+            return old_fn(tune_controller, trial)
+
+        return new_func
+
+    scheduler.on_trial_add = types.MethodType(
+        decorate_to_add_trial_info(scheduler.on_trial_add), scheduler
+    )
+
     # for ddp if required in the future
     # scaling_config = ScalingConfig(
     #     use_gpu=True,
@@ -354,6 +366,7 @@ def ray_tune_model(
         trainable, resources={"cpu": 4, "gpu": 1}
     )
 
+    storage_path = os.path.join(ray_storage_path, experiment_name)
     mode = "min"  # let user choose this
     tuner = tune.Tuner(
         trainable_with_resources,
@@ -367,12 +380,12 @@ def ray_tune_model(
         ),
         run_config=RunConfig(
             name=mlflow.active_run().info.run_name,
-            storage_path=ray_storage_path,
-            local_dir=ray_storage_path,
+            storage_path=storage_path,
+            local_dir=storage_path,
             callbacks=[
                 tune.logger.CSVLoggerCallback(),
                 tune.logger.JsonLoggerCallback(),
-                RayLogArtifactsMlFlowCallback(),
+                # RayLogArtifactsMlFlowCallback(),
             ],
             checkpoint_config=CheckpointConfig(
                 num_to_keep=1,
@@ -403,7 +416,8 @@ def ray_fit_model(
     tune.utils.wait_for_gpu(
         target_util=0.07, delay_s=10, retry=50
     )  # sometimes process needs some time to release GPU
-    print(config)
+
+    trial_local_dir = config.pop("trial_local_dir", None)
     lr = float(config.pop("lr", task.lr))
     batch_size = config.pop("batch_size", None)
     if batch_size is not None:
@@ -458,7 +472,8 @@ def ray_fit_model(
     with mlflow.start_run(nested=True) as run:
         # hack for nestedness
         mlflow.set_tag("mlflow.parentRunId", parent_run_id)
-
+        if trial_local_dir:
+            mlflow.set_tag(key="ray_runs_storage", value=trial_local_dir)
         trainer.logger = MLFlowLogger(
             experiment_name=experiment_name,
             run_id=run.info.run_id,
