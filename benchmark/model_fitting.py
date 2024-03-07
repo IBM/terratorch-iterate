@@ -13,9 +13,13 @@ import torch
 from lightning import Callback, Trainer
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint, RichProgressBar
 from lightning.pytorch.loggers.mlflow import MLFlowLogger
+
+# from ray.air.integrations.mlflow import
 from optuna.integration import PyTorchLightningPruningCallback
 from ray import tune
 from ray.air import CheckpointConfig, RunConfig
+from ray.train import Checkpoint
+from ray.tune.experiment import Trial
 
 # for ddp in the future if required
 # import ray
@@ -30,6 +34,7 @@ from ray.air import CheckpointConfig, RunConfig
 # )
 # from ray.train.torch import TorchTrainer
 from ray.tune.integration.pytorch_lightning import TuneReportCheckpointCallback
+from ray.tune.logger import LoggerCallback
 from ray.tune.schedulers import FIFOScheduler
 from ray.tune.schedulers.hb_bohb import HyperBandForBOHB
 from ray.tune.search.bohb import TuneBOHB
@@ -237,7 +242,6 @@ def fit_model_with_hparams(
 ########### MULTI NODE - RAY ##############
 ###########################################
 
-
 # class RayReportCallback(pl.callbacks.Callback):
 #     """Like Ray's Report Callback but with no checkpointing"""
 
@@ -260,6 +264,12 @@ def fit_model_with_hparams(
 #         report(metrics=metrics)
 
 
+class RayLogArtifactsMlFlowCallback(LoggerCallback):
+    def log_trial_end(self, trial: Trial, failed: bool = False):
+        mlflow.log_artifacts(trial.local_dir)
+        return super().log_trial_end(trial, failed)
+
+
 def ray_tune_model(
     backbone: Backbone,
     task: Task,
@@ -267,6 +277,7 @@ def ray_tune_model(
     base_args: dict[str, Any],
     hparam_space: optimization_space_type,
     storage_uri: str,
+    ray_storage_path: str,
     experiment_name: str,
     save_models: bool,
     num_trials: int,
@@ -319,6 +330,10 @@ def ray_tune_model(
                 reduction_factor=2,
                 stop_last_trials=False,
             )
+            if not save_models:
+                raise RuntimeWarning(
+                    "It is unclear if using `early_prune=True` with `save_models=False` produces correct results."
+                )
         else:
             scheduler = FIFOScheduler()
             search_alg = OptunaSearch()
@@ -335,7 +350,6 @@ def ray_tune_model(
     #     scaling_config=scaling_config,
     # )
 
-    ray_dir = Path(storage_uri).parent / "ray"
     trainable_with_resources = tune.with_resources(
         trainable, resources={"cpu": 4, "gpu": 1}
     )
@@ -353,11 +367,12 @@ def ray_tune_model(
         ),
         run_config=RunConfig(
             name=mlflow.active_run().info.run_name,
-            storage_path=str(ray_dir.absolute()),
-            local_dir=str(ray_dir.absolute()),
+            storage_path=ray_storage_path,
+            local_dir=ray_storage_path,
             callbacks=[
                 tune.logger.CSVLoggerCallback(),
                 tune.logger.JsonLoggerCallback(),
+                RayLogArtifactsMlFlowCallback(),
             ],
             checkpoint_config=CheckpointConfig(
                 num_to_keep=1,
@@ -388,6 +403,7 @@ def ray_fit_model(
     tune.utils.wait_for_gpu(
         target_util=0.07, delay_s=10, retry=50
     )  # sometimes process needs some time to release GPU
+    print(config)
     lr = float(config.pop("lr", task.lr))
     batch_size = config.pop("batch_size", None)
     if batch_size is not None:

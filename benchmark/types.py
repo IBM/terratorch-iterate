@@ -5,6 +5,7 @@ import enum
 from dataclasses import dataclass, field
 from typing import Any
 
+import torch
 from terratorch.datasets import HLSBands
 from terratorch.tasks import (
     IBMClassificationTask,
@@ -93,12 +94,12 @@ class Backbone:
     ```
 
     Args:
-        backbone (str): Name of the backbone in TerraTorch
+        backbone (str | torch.nn.Module): Name of the backbone in TerraTorch or torch.nn.Module to pass to the model factory
         model_factory (str): Name of the model factory to be used in TerraTorch
         backbone_args (dict): Arguments to be passed to the backbone.
     """
 
-    backbone: str
+    backbone: str | torch.nn.Module
     model_factory: str = "PrithviModelFactory"
     backbone_args: dict[str, Any] = field(default_factory=dict)
 

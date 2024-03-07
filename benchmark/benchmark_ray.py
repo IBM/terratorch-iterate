@@ -22,12 +22,14 @@ def benchmark_backbone_on_task(
     task: Task,
     storage_uri: str,
     experiment_name: str,
+    ray_storage_path: str,
     optimization_space: optimization_space_type | None = None,
     n_trials: int = 1,
     save_models: bool = False,
 ) -> dict:
     with mlflow.start_run(
-        run_name=f"{backbone.backbone}_{task.name}", nested=True
+        run_name=f"{backbone.backbone if isinstance(backbone.backbone, str) else str(type(backbone.backbone).__name__)}_{task.name}",
+        nested=True,
     ) as run:
         lightning_task_class = task.type.get_class_from_enum()
         model_args = build_model_args(backbone, task)
@@ -43,6 +45,7 @@ def benchmark_backbone_on_task(
             model_args,
             optimization_space,
             storage_uri,
+            ray_storage_path,
             experiment_name,
             save_models,
             n_trials,
@@ -101,6 +104,7 @@ def benchmark_backbone(
     experiment_name: str,
     benchmark_suffix: str | None = None,
     n_trials: int = 1,
+    ray_storage_path: str | None = None,
     optimization_space: optimization_space_type | None = None,
     save_models: bool = False,
 ):
@@ -111,6 +115,7 @@ def benchmark_backbone(
         experiment_name (str): Name of the MLFlow experiment to be used.
         tasks (list[Task]): List of Tasks to benchmark over.
         storage_uri (str): Path to storage location.
+        ray_storage_path (str): Path to storage of ray outputs, including saved models, when using ray tune. Required if optimization_space is specified
         benchmark_suffix (str | None, optional): Suffix to be added to benchmark run name. Defaults to None.
         n_trials (int, optional): Number of hyperparameter optimization trials to run. Defaults to 1.
         optimization_space (optimization_space_type | None, optional): Parameters to optimize over. Should be a dictionary
@@ -122,7 +127,11 @@ def benchmark_backbone(
     mlflow.set_tracking_uri(storage_uri)
     mlflow.set_experiment(experiment_name)
     # mlflow.pytorch.autolog(log_datasets=False)
-    run_name = backbone.backbone
+    run_name = (
+        backbone.backbone
+        if isinstance(backbone.backbone, str)
+        else str(type(backbone.backbone).__name__)
+    )
     if benchmark_suffix:
         run_name += f"_{benchmark_suffix}"
 
@@ -136,7 +145,7 @@ def benchmark_backbone(
             # no hparams, parallelize over tasks
             ray_tasks = []
             for task in tasks:
-                run_name = f"{backbone.backbone}_{task.name}"
+                run_name = f"{backbone.backbone if isinstance(backbone.backbone, str) else str(type(backbone.backbone).__name__)}_{task.name}"
                 lightning_task_class = task.type.get_class_from_enum()
                 model_args = build_model_args(backbone, task)
                 ray_tasks.append(
@@ -163,6 +172,10 @@ def benchmark_backbone(
                 for task, result in zip(tasks, results)
             ]
         else:
+            if ray_storage_path is None:
+                raise Exception(
+                    "`ray_storage_path` must be specified if `optimization_space` is specified."
+                )
             # hparams, parallelize within tasks, run one task at a time.
             results = []
             for task in tasks:
@@ -172,6 +185,7 @@ def benchmark_backbone(
                         task,
                         storage_uri,
                         experiment_name,
+                        ray_storage_path,
                         optimization_space=optimization_space,
                         n_trials=n_trials,
                         save_models=save_models,

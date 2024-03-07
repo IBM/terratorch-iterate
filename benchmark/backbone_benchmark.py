@@ -1,6 +1,7 @@
 """
 This module contains the high level functions for benchmarking on a single node.
 """
+import importlib
 from functools import partial
 from typing import Any
 
@@ -31,7 +32,8 @@ def benchmark_backbone_on_task(
     save_models: bool = False,
 ) -> tuple[float, str | list[str] | None, dict[str, Any]]:
     with mlflow.start_run(
-        run_name=f"{backbone.backbone}_{task.name}", nested=True
+        run_name=f"{backbone.backbone if isinstance(backbone.backbone, str) else str(type(backbone.backbone).__name__)}_{task.name}",
+        nested=True,
     ) as run:
         lightning_task_class = task.type.get_class_from_enum()
         model_args = build_model_args(backbone, task)
@@ -64,7 +66,7 @@ def benchmark_backbone_on_task(
             task,
             lightning_task_class,
             model_args,
-            f"{backbone.backbone}_{task.name}",
+            f"{backbone.backbone if isinstance(backbone.backbone, str) else str(type(backbone.backbone).__name__)}_{task.name}",
             experiment_name,
             optimization_space,
             storage_uri,
@@ -87,6 +89,8 @@ def benchmark_backbone(
     experiment_name: str,
     tasks: list[Task],
     storage_uri: str,
+    ray_storage_path: str | None = None,
+    backbone_import: str | None = None,
     benchmark_suffix: str | None = None,
     n_trials: int = 1,
     optimization_space: optimization_space_type | None = None,
@@ -99,6 +103,8 @@ def benchmark_backbone(
         experiment_name (str): Name of the MLFlow experiment to be used.
         tasks (list[Task]): List of Tasks to benchmark over.
         storage_uri (str): Path to storage location.
+        ray_storage_path (str | None): Ignored. Exists for compatibility with ray configs.
+        backbone_import (str | None): Path to module that will be imported to register a potential new backbone. Defaults to None.
         benchmark_suffix (str | None, optional): Suffix to be added to benchmark run name. Defaults to None.
         n_trials (int, optional): Number of hyperparameter optimization trials to run. Defaults to 1.
         optimization_space (optimization_space_type | None, optional): Parameters to optimize over. Should be a dictionary
@@ -106,9 +112,15 @@ def benchmark_backbone(
             Arguments belonging passed to the backbone, decoder or head should be given in the form `backbone_{argument}`, `decoder_{argument}` or `head_{argument}` Defaults to None.
         save_models (bool, optional): Whether to save the model. Defaults to False.
     """
+    if backbone_import:
+        importlib.import_module(backbone_import)
     mlflow.set_tracking_uri(storage_uri)
     mlflow.set_experiment(experiment_name)
-    run_name = backbone.backbone
+    run_name = (
+        backbone.backbone
+        if isinstance(backbone.backbone, str)
+        else str(type(backbone.backbone).__name__)
+    )
     if benchmark_suffix:
         run_name += f"_{benchmark_suffix}"
 

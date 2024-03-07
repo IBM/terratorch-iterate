@@ -66,6 +66,7 @@ tasks:
 n_trials: 20
 save_models: False
 storage_uri: /dccstor/geofm-finetuning/carlosgomes/benchmark
+ray_storage_path: /dccstor/geofm-finetuning/carlosgomes/ray_storage
 optimization_space:
   # decoder:
   #   - FCNDecoder
