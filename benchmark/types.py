@@ -9,6 +9,7 @@ import torch
 from terratorch.datasets import HLSBands
 from terratorch.tasks import (
     IBMClassificationTask,
+    IBMMultiLabelClassificationTask,
     IBMPixelwiseRegressionTask,
     IBMSemanticSegmentationTask,
 )
@@ -27,6 +28,7 @@ class TaskTypeEnum(enum.Enum):
     segmentation = "segmentation"
     regression = "regression"
     classification = "classification"
+    multilabel_classification = "multilabel_classification"
 
     def get_class_from_enum(
         self,
@@ -38,6 +40,8 @@ class TaskTypeEnum(enum.Enum):
                 return IBMPixelwiseRegressionTask
             case TaskTypeEnum.classification:
                 return IBMClassificationTask
+            case TaskTypeEnum.multilabel_classification:
+                return IBMMultiLabelClassificationTask
             case _:
                 raise TypeError("Task type does not exist")
 
@@ -117,6 +121,7 @@ class Task:
         decoder (str): Name of decoder in TerraTorch.
         loss (str): Name of loss.
         metric (str): Metric to optimize over for hyperparameter search. Defaults to "val/loss".
+        direction (str): Whether to minimize of maximize metric. Must be "min" or "max". Defaults to "min".
         lr (float): Learning rate. Defaults to 1e-3.
         max_epochs (int): Maximum number of epochs for each training job in this task.
         freeze_backbone (bool): Whether to freeze this backbone.
@@ -136,6 +141,7 @@ class Task:
     decoder: str
     loss: str
     metric: str = "val/loss"
+    direction: str = "min"
     lr: float = 1e-3
     max_epochs: int = 100
     freeze_backbone: bool = False

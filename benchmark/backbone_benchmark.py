@@ -21,6 +21,8 @@ from benchmark.types import (
     optimization_space_type,
 )
 
+direction_type_to_optuna = {"min": "minimize", "max": "maximize"}
+
 
 def benchmark_backbone_on_task(
     backbone: Backbone,
@@ -57,7 +59,9 @@ def benchmark_backbone_on_task(
 
         # if optimization parameters specified, do hyperparameter tuning
         study = optuna.create_study(
-            direction="minimize",  # in the future may want to allow user to specify this
+            direction=direction_type_to_optuna[
+                task.direction
+            ],  # in the future may want to allow user to specify this
             pruner=HyperbandPruner(),
         )
         objective = partial(

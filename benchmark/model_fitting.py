@@ -160,7 +160,7 @@ def fit_model(
         callbacks.append(PyTorchLightningPruningCallback(trial, monitor="val/loss"))
 
     if save_models:
-        callbacks.append(ModelCheckpoint(monitor="val/loss"))
+        callbacks.append(ModelCheckpoint(monitor=task.metric, mode=task.direction))
     trainer = Trainer(
         callbacks=callbacks,
         max_epochs=task.max_epochs,
@@ -367,12 +367,11 @@ def ray_tune_model(
     )
 
     storage_path = os.path.join(ray_storage_path, experiment_name)
-    mode = "min"  # let user choose this
     tuner = tune.Tuner(
         trainable_with_resources,
         tune_config=tune.TuneConfig(
             metric=task.metric,
-            mode=mode,
+            mode=task.direction,
             num_samples=num_trials,
             search_alg=search_alg,
             scheduler=scheduler,
@@ -390,7 +389,7 @@ def ray_tune_model(
             checkpoint_config=CheckpointConfig(
                 num_to_keep=1,
                 checkpoint_score_attribute=task.metric,
-                checkpoint_score_order=mode,
+                checkpoint_score_order=task.direction,
             )
             if save_models
             else None,
@@ -450,7 +449,7 @@ def ray_fit_model(
     ]
 
     # if save_models:
-    #     callbacks.append(ModelCheckpoint(monitor="val/loss"))
+    #     callbacks.append(ModelCheckpoint(monitor=task.metric))
 
     trainer = Trainer(
         # commented out is for ddp if required in the future
@@ -462,6 +461,7 @@ def ray_fit_model(
         devices=1,
         enable_progress_bar=False,
         max_epochs=task.max_epochs,
+        enable_checkpointing=False,
     )
 
     # trainer = prepare_trainer(trainer)

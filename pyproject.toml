@@ -39,6 +39,7 @@ opencv-python = "^4.9.0.80"
 h5py = "^3.10.0"
 hpbandster = "^0.7.4"
 configspace = "^0.7.1"
+geobench = "^1.0.0"
 
 [tool.poetry.extras]
 test = ["pytest", "pytest-cov"]
