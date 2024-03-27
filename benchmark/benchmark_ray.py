@@ -70,7 +70,7 @@ def benchmark_backbone_on_task(
         }
 
 
-@ray.remote(num_cpus=6, num_gpus=1)
+@ray.remote(num_cpus=8, num_gpus=1)
 def remote_fit(
     backbone: Backbone,
     model_args: dict,
@@ -107,6 +107,7 @@ def benchmark_backbone(
     ray_storage_path: str | None = None,
     optimization_space: optimization_space_type | None = None,
     save_models: bool = False,
+    run_id: str | None = None,
 ):
     """Highest level function to benchmark a backbone using a ray cluster
 
@@ -122,6 +123,7 @@ def benchmark_backbone(
             of strings (parameter name) to list (discrete set of possibilities) or ParameterBounds, defining a range to optimize over.
             Arguments belonging passed to the backbone, decoder or head should be given in the form `backbone_{argument}`, `decoder_{argument}` or `head_{argument}` Defaults to None.
         save_models (bool, optional): Whether to save the model. Defaults to False.
+        run_id (str | None): id of existing mlflow run to use as top-level run. Useful to add more experiments to a previous benchmark run. Defaults to None.
     """
     ray.init()
     mlflow.set_tracking_uri(storage_uri)
@@ -138,7 +140,7 @@ def benchmark_backbone(
     table_columns = ["Task", "Metric", "Best Score", "Hyperparameters"]
     table_entries = []
 
-    with mlflow.start_run(run_name=run_name) as run:
+    with mlflow.start_run(run_name=run_name, run_id=run_id) as run:
         mlflow.set_tag("purpose", "backbone_benchmarking")
 
         if optimization_space is None:

@@ -99,12 +99,10 @@ class Backbone:
 
     Args:
         backbone (str | torch.nn.Module): Name of the backbone in TerraTorch or torch.nn.Module to pass to the model factory
-        model_factory (str): Name of the model factory to be used in TerraTorch
         backbone_args (dict): Arguments to be passed to the backbone.
     """
 
     backbone: str | torch.nn.Module
-    model_factory: str = "PrithviModelFactory"
     backbone_args: dict[str, Any] = field(default_factory=dict)
 
 
@@ -115,11 +113,12 @@ class Task:
 
     Args:
         name (str): Name for this task
-        name (TaskTypeEnum): Type of task.
+        type (TaskTypeEnum): Type of task.
         bands (list[HLSBands | int]): Bands used in this task.
         datamodule (BaseDataModule): Datamodule to be used.
         decoder (str): Name of decoder in TerraTorch.
         loss (str): Name of loss.
+        model_factory (str): Name of the model factory to be used in TerraTorch
         metric (str): Metric to optimize over for hyperparameter search. Defaults to "val/loss".
         direction (str): Whether to minimize of maximize metric. Must be "min" or "max". Defaults to "min".
         lr (float): Learning rate. Defaults to 1e-3.
@@ -130,6 +129,7 @@ class Task:
         decoder_args (dict): Arguments to be passed to the decoder.
         head_args (dict): Arguments to be passed to the head.
         ignore_index (int | None): Index to ignore in task.
+        early_stop_patience (int | None): Patience for early stopping of runs using Lightning Early Stopping Callback. If None, will not use early stopping. Defaults to 10.
         early_prune (bool): Whether to prune unpromising runs early. When this is true, a larger number of trials can / should be used. Defaults to False.
         optimization_except (set[str]): Keys from hyperparameter space to ignore for this task.
     """
@@ -140,6 +140,7 @@ class Task:
     datamodule: BaseDataModule
     decoder: str
     loss: str
+    model_factory: str = "PrithviModelFactory"
     metric: str = "val/loss"
     direction: str = "min"
     lr: float = 1e-3
@@ -150,6 +151,7 @@ class Task:
     decoder_args: dict[str, Any] = field(default_factory=dict)
     head_args: dict[str, Any] = field(default_factory=dict)
     ignore_index: int | None = None
+    early_stop_patience: int | None = 10
     early_prune: bool = False
     optimization_except: set[str] = field(default_factory=set)
 

@@ -33,7 +33,7 @@ tasks:
   #   type: segmentation
   #   loss: ce
   #   bands:
-  #     - RED3
+  #     - RED
   #     - GREEN
   #     - BLUE
   #     - NIR_NARROW

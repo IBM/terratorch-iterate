@@ -22,6 +22,7 @@ from optuna.integration import PyTorchLightningPruningCallback
 from ray import tune
 from ray.air import CheckpointConfig, RunConfig
 from ray.train import Checkpoint
+from ray.train._internal.storage import StorageContext
 from ray.tune.experiment import Trial
 
 # for ddp in the future if required
@@ -142,7 +143,7 @@ def fit_model(
 
     lightning_task = lightning_task_class(
         model_args,
-        backbone.model_factory,
+        task.model_factory,
         loss=task.loss,
         lr=lr,
         optimizer="AdamW",
@@ -153,8 +154,10 @@ def fit_model(
     )
     callbacks: list[Callback] = [
         RichProgressBar(),
-        EarlyStopping(monitor="val/loss", patience=10),  # let user configure this?
     ]
+
+    if task.early_stop_patience is not None:
+        callbacks.append(EarlyStopping("val/loss", patience=task.early_stop_patience))
 
     if task.early_prune and trial is not None:
         callbacks.append(PyTorchLightningPruningCallback(trial, monitor="val/loss"))
@@ -165,6 +168,7 @@ def fit_model(
         callbacks=callbacks,
         max_epochs=task.max_epochs,
         enable_checkpointing=save_models,
+        log_every_n_steps=10,
     )
     return launch_training(
         trainer,
@@ -341,7 +345,7 @@ def ray_tune_model(
 
         @wraps(fn)
         def new_func(self, tune_controller, trial: Trial):
-            trial.config["trial_local_dir"] = trial.local_dir
+            trial.config["trial_storage"] = trial.storage
             return old_fn(tune_controller, trial)
 
         return new_func
@@ -363,7 +367,7 @@ def ray_tune_model(
     # )
 
     trainable_with_resources = tune.with_resources(
-        trainable, resources={"cpu": 4, "gpu": 1}
+        trainable, resources={"cpu": 8, "gpu": 1}
     )
 
     storage_path = os.path.join(ray_storage_path, experiment_name)
@@ -416,7 +420,7 @@ def ray_fit_model(
         target_util=0.07, delay_s=10, retry=50
     )  # sometimes process needs some time to release GPU
 
-    trial_local_dir = config.pop("trial_local_dir", None)
+    trial_storage: StorageContext = config.pop("trial_storage", None)
     lr = float(config.pop("lr", task.lr))
     batch_size = config.pop("batch_size", None)
     if batch_size is not None:
@@ -432,7 +436,7 @@ def ray_fit_model(
 
     lightning_task = lightning_task_class(
         model_args,
-        backbone.model_factory,
+        task.model_factory,
         loss=task.loss,
         lr=lr,
         optimizer="AdamW",
@@ -444,9 +448,10 @@ def ray_fit_model(
     )
     callbacks: list[Callback] = [
         # RayReportCallback(), for ddp if required in the future
-        _TuneReportCallback(metrics=[task.metric], save_checkpoints=save_models),
-        EarlyStopping("val/loss", patience=10),  # let user determine this?
+        _TuneReportCallback(metrics=[task.metric], save_checkpoints=save_models)
     ]
+    if task.early_stop_patience is not None:
+        callbacks.append(EarlyStopping("val/loss", patience=task.early_stop_patience))
 
     # if save_models:
     #     callbacks.append(ModelCheckpoint(monitor=task.metric))
@@ -462,6 +467,7 @@ def ray_fit_model(
         enable_progress_bar=False,
         max_epochs=task.max_epochs,
         enable_checkpointing=False,
+        log_every_n_steps=10,
     )
 
     # trainer = prepare_trainer(trainer)
@@ -472,8 +478,6 @@ def ray_fit_model(
     with mlflow.start_run(nested=True) as run:
         # hack for nestedness
         mlflow.set_tag("mlflow.parentRunId", parent_run_id)
-        if trial_local_dir:
-            mlflow.log_artifacts(trial_local_dir)
         trainer.logger = MLFlowLogger(
             experiment_name=experiment_name,
             run_id=run.info.run_id,
@@ -484,3 +488,6 @@ def ray_fit_model(
         # explicitly log batch_size. Since it is not a model param, it will not be logged
         mlflow.log_param("batch_size", task.datamodule.batch_size)
         trainer.fit(lightning_task, datamodule=task.datamodule)
+        print("Trial Storage: ", trial_storage.trial_fs_path)
+        if trial_storage is not None:
+            mlflow.log_artifacts(trial_storage.trial_fs_path)

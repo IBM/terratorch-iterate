@@ -60,7 +60,7 @@ tasks:
   #   - head_dropout
   # - decoder
 n_trials: 2
-save_models: false
+save_models: True
 storage_uri: /dccstor/geofm-finetuning/carlosgomes/benchmark/
 ray_storage_path: /dccstor/geofm-finetuning/carlosgomes/ray_storage
 optimization_space:
