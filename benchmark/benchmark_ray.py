@@ -28,7 +28,7 @@ def benchmark_backbone_on_task(
     save_models: bool = False,
 ) -> dict:
     with mlflow.start_run(
-        run_name=f"{backbone.backbone if isinstance(backbone.backbone, str) else str(type(backbone.backbone).__name__)}_{task.name}",
+        run_name=f"{mlflow.active_run().info.run_name}_{task.name}",
         nested=True,
     ) as run:
         lightning_task_class = task.type.get_class_from_enum()
@@ -59,14 +59,14 @@ def benchmark_backbone_on_task(
         if results.get_best_result().config is None:
             raise Exception("Best result config was none")
 
-        mlflow.log_params(results.get_best_result().config["train_loop_config"])
+        mlflow.log_params(results.get_best_result().config)
         mlflow.log_metric(
             f"best_{task.metric}", results.get_best_result().metrics[task.metric]
         )
         return {
             "best_result": results.get_best_result().metrics[task.metric],
             "metric": task.metric,
-            "best_config": results.get_best_result().config["train_loop_config"],
+            "best_config": results.get_best_result().config,
         }
 
 
@@ -84,6 +84,11 @@ def remote_fit(
 ) -> float:
     mlflow.set_tracking_uri(storage_uri)
     mlflow.set_experiment(experiment_name)
+    lr = float(model_args.pop("lr", task.lr))
+    batch_size = model_args.pop("batch_size", None)
+    if batch_size is not None:
+        batch_size = int(batch_size)
+    freeze_backbone = bool(model_args.pop("freeze_backbone", False))
     return fit_model(
         backbone,
         model_args,
@@ -94,6 +99,9 @@ def remote_fit(
         storage_uri,
         parent_run_id,
         save_models=save_models,
+        lr=lr,
+        batch_size=batch_size,
+        freeze_backbone=freeze_backbone,
     )[0]
 
 

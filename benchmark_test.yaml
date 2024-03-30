@@ -27,6 +27,7 @@ tasks:
     type: segmentation
     loss: ce
     ignore_index: -1
+    lr: 10
     bands:
       - BLUE
       - GREEN
