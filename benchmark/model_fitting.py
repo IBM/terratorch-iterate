@@ -100,6 +100,7 @@ def launch_training(
     metric: str,
     storage_uri: str,
     parent_run_id: str,
+    direction: str,
 ) -> float:
     with mlflow.start_run(run_name=run_name, nested=True) as run:
         mlflow.set_tag("mlflow.parentRunId", parent_run_id)
@@ -123,7 +124,14 @@ def launch_training(
             raise Exception(
                 f"No values for metric {metric}. Choose a valid metric for this task"
             )
-        return metric_history[-1].value  # or best idk
+        # return metric_history[-1].value  # or best idk
+        metric_values = [m.value for m in metric_history]
+        if direction == "max":
+            return max(metric_values)  # or best idk
+        elif direction == "min":
+            return min(metric_values)
+        else:
+            raise Exception(f"Direction must be `max` or `min` but got {direction}")
         # trainer.test(task, datamodule=datamodule)
 
 
@@ -142,6 +150,7 @@ def fit_model(
     freeze_backbone: bool = False,
     save_models: bool = False,
 ) -> tuple[float, str]:
+    torch.set_float32_matmul_precision("high")
     if batch_size:
         task.datamodule.batch_size = (
             batch_size  # TODO: not sure if this will work, check
@@ -189,6 +198,7 @@ def fit_model(
         task.metric,
         storage_uri,
         parent_run_id,
+        task.direction,
     ), task.metric
 
 
@@ -427,6 +437,7 @@ def ray_fit_model(
     save_models: bool = True,
 ) -> None:
     print(config)
+    torch.set_float32_matmul_precision("high")
     tune.utils.wait_for_gpu(
         target_util=0.07, delay_s=10, retry=50
     )  # sometimes process needs some time to release GPU

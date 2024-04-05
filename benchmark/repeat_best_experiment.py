@@ -3,6 +3,7 @@ This module contains functions to re-run a best backbone with different seeds
 """
 
 import warnings
+from ast import literal_eval
 from random import randint
 
 import mlflow
@@ -29,7 +30,7 @@ def remote_fit(
     task: Task,
     lightning_task_class: valid_task_types,
     seed: int,
-) -> float:
+) -> float | None:
     lr = float(model_args.pop("lr", task.lr))
     batch_size = model_args.pop("batch_size", None)
     if batch_size is not None:
@@ -62,14 +63,24 @@ def remote_fit(
     trainer = Trainer(
         callbacks=callbacks,
         logger=False,
-        # max_epochs=task.max_epochs,
-        max_epochs=1,
+        max_epochs=task.max_epochs,
+        # max_epochs=1,
         enable_checkpointing=False,
         log_every_n_steps=10,
+        precision="16-mixed",
     )
     seed_everything(seed, workers=True)
-    trainer.fit(lightning_task, datamodule=task.datamodule)
-    return trainer.callback_metrics[task.metric].max().item()
+    try:
+        trainer.fit(lightning_task, datamodule=task.datamodule)
+    except Exception as e:
+        warnings.warn(str(e))
+        return None
+    if task.direction == "max":
+        return trainer.callback_metrics[task.metric].max().item()
+    elif task.direction == "min":
+        return trainer.callback_metrics[task.metric].min().item()
+    else:
+        raise Exception(f"Direction must be `max` or `min` but got {task.direction}")
 
 
 def rerun_best_from_backbone(
@@ -87,7 +98,7 @@ def rerun_best_from_backbone(
     save_models: bool = False,
     **kwargs,
 ):
-    # ray.init()
+    ray.init()
     mlflow.set_tracking_uri(storage_uri)
     mlflow.set_experiment(experiment_name)
 
@@ -104,22 +115,31 @@ def rerun_best_from_backbone(
     ray_tasks = []
     seeds = [randint(1, 5000) for i in range(10)]
     for task in tasks:
-        matching_runs = [
-            run
-            for run in runs
-            if task.name == "_".join(run.info.run_name.split("_")[1:])
-        ]  # type: ignore
+        matching_runs = [run for run in runs if run.info.run_name.endswith(task.name)]  # type: ignore
         if len(matching_runs) == 0:
-            msg = f"No runs found for task {task.name}"
+            msg = f"No runs found for task {task.name}. Skipping."
             warnings.warn(msg)
+            continue
         if len(matching_runs) > 1:
             msg = f"More than 1 run found for task {task.name}"
             raise Exception(msg)
 
         best_params = matching_runs[0].data.params
+        # eval them
+        best_params = {k: literal_eval(v) for k, v in best_params.items()}
         lightning_task_class = task.type.get_class_from_enum()
+        # print(f"Task {task.name}")
+        # print("Best params:")
+        # print(best_params)
+        # print("============")
         model_args = build_model_args(backbone, task)
+        # print("Built model args:")
+        # print(model_args)
+        # print("============")
         model_args = inject_hparams(model_args, best_params)
+        # print("Final model args")
+        # print(model_args)
+        # print("-------------")
         for seed in seeds:
             ray_tasks.append(
                 remote_fit.remote(
