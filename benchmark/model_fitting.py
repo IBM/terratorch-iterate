@@ -14,6 +14,7 @@ import mlflow
 import optuna
 import torch
 from lightning import Callback, Trainer
+from lightning.fabric.plugins.precision.precision import _PRECISION_INPUT
 from lightning.pytorch.callbacks import (
     EarlyStopping,
     LearningRateMonitor,
@@ -149,6 +150,7 @@ def fit_model(
     batch_size: int | None = None,
     freeze_backbone: bool = False,
     save_models: bool = False,
+    precision: _PRECISION_INPUT = "16-mixed",
 ) -> tuple[float, str]:
     torch.set_float32_matmul_precision("high")
     if batch_size:
@@ -175,10 +177,14 @@ def fit_model(
     ]
 
     if task.early_stop_patience is not None:
-        callbacks.append(EarlyStopping("val/loss", patience=task.early_stop_patience))
+        callbacks.append(
+            EarlyStopping(
+                task.metric, mode=task.direction, patience=task.early_stop_patience
+            )
+        )
 
     if task.early_prune and trial is not None:
-        callbacks.append(PyTorchLightningPruningCallback(trial, monitor="val/loss"))
+        callbacks.append(PyTorchLightningPruningCallback(trial, monitor=task.metric))
 
     if save_models:
         callbacks.append(ModelCheckpoint(monitor=task.metric, mode=task.direction))
@@ -187,7 +193,7 @@ def fit_model(
         max_epochs=task.max_epochs,
         enable_checkpointing=save_models,
         log_every_n_steps=10,
-        precision="16-mixed",
+        precision=precision,
     )
     return launch_training(
         trainer,
@@ -213,6 +219,7 @@ def fit_model_with_hparams(
     storage_uri: str,
     parent_run_id: str,
     save_models: bool,
+    precision,
     trial: optuna.Trial,
 ) -> float:
     current_hparams: dict[str, int | float | str | bool] = {}
@@ -262,6 +269,7 @@ def fit_model_with_hparams(
         batch_size=batch_size,
         freeze_backbone=freeze_backbone,
         save_models=save_models,
+        precision=precision,
     )[0]  # return only the metric value for optuna
 
 
@@ -302,6 +310,7 @@ def ray_tune_model(
     experiment_name: str,
     save_models: bool,
     num_trials: int,
+    precision: _PRECISION_INPUT = "16-mixed",
 ) -> tune.ResultGrid:
     trainable = tune.with_parameters(
         ray_fit_model,
@@ -313,6 +322,7 @@ def ray_tune_model(
         experiment_name=experiment_name,
         parent_run_id=mlflow.active_run().info.run_id,
         save_models=save_models,
+        precision=precision,
     )
 
     current_hparams: dict[str, Any] = {}
@@ -435,6 +445,7 @@ def ray_fit_model(
     experiment_name: str,
     parent_run_id: str,
     save_models: bool = True,
+    precision: _PRECISION_INPUT = "16-mixed",
 ) -> None:
     print(config)
     torch.set_float32_matmul_precision("high")
@@ -473,7 +484,11 @@ def ray_fit_model(
         LearningRateMonitor(logging_interval="epoch"),
     ]
     if task.early_stop_patience is not None:
-        callbacks.append(EarlyStopping("val/loss", patience=task.early_stop_patience))
+        callbacks.append(
+            EarlyStopping(
+                task.metric, mode=task.direction, patience=task.early_stop_patience
+            )
+        )
 
     # if save_models:
     #     callbacks.append(ModelCheckpoint(monitor=task.metric))
@@ -490,7 +505,7 @@ def ray_fit_model(
         max_epochs=task.max_epochs,
         enable_checkpointing=False,
         log_every_n_steps=10,
-        precision="16-mixed",
+        precision=precision,
     )
 
     # trainer = prepare_trainer(trainer)

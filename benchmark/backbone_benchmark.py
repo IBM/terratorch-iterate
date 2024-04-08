@@ -6,6 +6,7 @@ import mlflow
 import pandas as pd
 import ray
 from jsonargparse import CLI
+from lightning.fabric.plugins.precision.precision import _PRECISION_INPUT
 from tabulate import tabulate
 
 from benchmark.model_fitting import fit_model, ray_tune_model, valid_task_types
@@ -26,6 +27,7 @@ def benchmark_backbone_on_task(
     optimization_space: optimization_space_type | None = None,
     n_trials: int = 1,
     save_models: bool = False,
+    precision: _PRECISION_INPUT = "16-mixed",
 ) -> dict:
     with mlflow.start_run(
         run_name=f"{backbone.backbone if isinstance(backbone.backbone, str) else str(type(backbone.backbone).__name__)}_{task.name}",
@@ -49,6 +51,7 @@ def benchmark_backbone_on_task(
             experiment_name,
             save_models,
             n_trials,
+            precision,
         )
 
         mlflow.log_table(
@@ -81,6 +84,7 @@ def remote_fit(
     experiment_name: str,
     parent_run_id: str,
     save_models: bool,
+    precision: _PRECISION_INPUT,
 ) -> float:
     mlflow.set_tracking_uri(storage_uri)
     mlflow.set_experiment(experiment_name)
@@ -94,6 +98,7 @@ def remote_fit(
         storage_uri,
         parent_run_id,
         save_models=save_models,
+        precision=precision,
     )[0]
 
 
@@ -108,6 +113,7 @@ def benchmark_backbone(
     optimization_space: optimization_space_type | None = None,
     save_models: bool = False,
     run_id: str | None = None,
+    precision: _PRECISION_INPUT = "16-mixed",
 ):
     """Highest level function to benchmark a backbone using a ray cluster
 
@@ -124,6 +130,7 @@ def benchmark_backbone(
             Arguments belonging passed to the backbone, decoder or head should be given in the form `backbone_{argument}`, `decoder_{argument}` or `head_{argument}` Defaults to None.
         save_models (bool, optional): Whether to save the model. Defaults to False.
         run_id (str | None): id of existing mlflow run to use as top-level run. Useful to add more experiments to a previous benchmark run. Defaults to None.
+        precision (str): precision to use for training. Defaults to 16-mixed.
     """
     ray.init()
     mlflow.set_tracking_uri(storage_uri)
@@ -161,6 +168,7 @@ def benchmark_backbone(
                         experiment_name,
                         run.info.run_id,
                         save_models,
+                        precision,
                     )
                 )
             results = ray.get(ray_tasks)
@@ -191,6 +199,7 @@ def benchmark_backbone(
                         optimization_space=optimization_space,
                         n_trials=n_trials,
                         save_models=save_models,
+                        precision=precision,
                     )
                 )
 
