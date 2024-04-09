@@ -10,8 +10,10 @@ import mlflow
 import mlflow.entities
 import pandas as pd
 import ray
+import torch
 from jsonargparse import CLI
 from lightning import Callback, Trainer
+from lightning.fabric.plugins.precision.precision import _PRECISION_INPUT
 from lightning.pytorch import seed_everything
 from lightning.pytorch.callbacks import EarlyStopping, RichProgressBar
 from tabulate import tabulate
@@ -30,7 +32,9 @@ def remote_fit(
     task: Task,
     lightning_task_class: valid_task_types,
     seed: int,
+    precision: _PRECISION_INPUT = "16-mixed",
 ) -> float | None:
+    torch.set_float32_matmul_precision("high")
     lr = float(model_args.pop("lr", task.lr))
     batch_size = model_args.pop("batch_size", None)
     if batch_size is not None:
@@ -58,7 +62,11 @@ def remote_fit(
     ]
 
     if task.early_stop_patience is not None:
-        callbacks.append(EarlyStopping("val/loss", patience=task.early_stop_patience))
+        callbacks.append(
+            EarlyStopping(
+                task.metric, mode=task.direction, patience=task.early_stop_patience
+            )
+        )
 
     trainer = Trainer(
         callbacks=callbacks,
@@ -66,8 +74,9 @@ def remote_fit(
         max_epochs=task.max_epochs,
         # max_epochs=1,
         enable_checkpointing=False,
+        enable_progress_bar=False,
         log_every_n_steps=10,
-        precision="16-mixed",
+        precision=precision,
     )
     seed_everything(seed, workers=True)
     try:
@@ -96,6 +105,7 @@ def rerun_best_from_backbone(
     ray_storage_path: str | None = None,
     optimization_space: optimization_space_type | None = None,
     save_models: bool = False,
+    precision: _PRECISION_INPUT = "16-mixed",
     **kwargs,
 ):
     ray.init()
@@ -143,7 +153,7 @@ def rerun_best_from_backbone(
         for seed in seeds:
             ray_tasks.append(
                 remote_fit.remote(
-                    backbone, model_args, task, lightning_task_class, seed
+                    backbone, model_args, task, lightning_task_class, seed, precision
                 )
             )
     results = ray.get(ray_tasks)
