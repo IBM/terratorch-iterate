@@ -36,6 +36,7 @@ def remote_fit(
 ) -> float | None:
     torch.set_float32_matmul_precision("high")
     seed_everything(seed, workers=True)
+
     lr = float(model_args.pop("lr", task.lr))
     batch_size = model_args.pop("batch_size", None)
     if batch_size is not None:
@@ -80,15 +81,15 @@ def remote_fit(
     )
     try:
         trainer.fit(lightning_task, datamodule=task.datamodule)
+        metrics = trainer.test(
+            lightning_task, datamodule=task.datamodule, verbose=False
+        )
+        metrics = metrics[0]
     except Exception as e:
         warnings.warn(str(e))
         return None
-    if task.direction == "max":
-        return trainer.callback_metrics[task.metric].max().item()
-    elif task.direction == "min":
-        return trainer.callback_metrics[task.metric].min().item()
-    else:
-        raise Exception(f"Direction must be `max` or `min` but got {task.direction}")
+    test_metric = "test/" + task.metric.split("/")[1]
+    return metrics[test_metric]
 
 
 def rerun_best_from_backbone(
@@ -164,7 +165,7 @@ def rerun_best_from_backbone(
     table_entries = [
         [
             task.name,
-            task.metric,
+            task.metric.split("/")[-1],
             result,
         ]
         for task, result in zip(
