@@ -1,6 +1,7 @@
 """
 This module defines all the types expected at input. Used for type checking by jsonargparse.
 """
+import copy
 import enum
 from dataclasses import dataclass, field
 from typing import Any
@@ -125,6 +126,7 @@ class Task:
         max_epochs (int): Maximum number of epochs for each training job in this task.
         freeze_backbone (bool): Whether to freeze this backbone.
         num_classes (int | None): Number of classes. Needed only for classification or segmentation. Defaults to None.
+        class_weights (list[int] | None): Class weights to be used in the loss. Only for classification or segmentation. Defaults to None.
         backbone_args (dict): Arguments to be passed to the backbone.
         decoder_args (dict): Arguments to be passed to the decoder.
         head_args (dict): Arguments to be passed to the head.
@@ -140,13 +142,14 @@ class Task:
     datamodule: BaseDataModule
     decoder: str
     loss: str
+    direction: str
     model_factory: str = "PrithviModelFactory"
     metric: str = "val/loss"
-    direction: str = "min"
     lr: float = 1e-3
     max_epochs: int = 100
     freeze_backbone: bool = False
     num_classes: int | None = None
+    class_weights: None | list[float] = None
     backbone_args: dict[str, Any] = field(default_factory=dict)
     decoder_args: dict[str, Any] = field(default_factory=dict)
     head_args: dict[str, Any] = field(default_factory=dict)
@@ -159,11 +162,13 @@ class Task:
 def build_model_args(backbone: Backbone, task: Task) -> dict[str, Any]:
     args = {}
     args["backbone"] = backbone.backbone
-    args["pretrained"] = backbone.backbone_args.pop("pretrained", True)
-    for backbone_key, backbone_val in backbone.backbone_args.items():
+    backbone_args = copy.deepcopy(backbone.backbone_args)
+    args["pretrained"] = backbone_args.pop("pretrained", True)
+    for backbone_key, backbone_val in backbone_args.items():
         args[f"backbone_{backbone_key}"] = backbone_val
 
     # allow each task to specify / overwrite backbone keys
+    args["pretrained"] = task.backbone_args.pop("pretrained", args["pretrained"])
     for backbone_key, backbone_val in task.backbone_args.items():
         args[f"backbone_{backbone_key}"] = backbone_val
 

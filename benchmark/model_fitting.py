@@ -148,6 +148,7 @@ def fit_model(
     trial: optuna.Trial | None = None,
     lr: float | None = None,
     batch_size: int | None = None,
+    weight_decay: float = 0.05,
     freeze_backbone: bool = False,
     save_models: bool = False,
     precision: _PRECISION_INPUT = "16-mixed",
@@ -160,14 +161,14 @@ def fit_model(
         )
     if lr is None:
         lr = task.lr
-
+    
     params: dict[str, Any] = dict(
         model_args=model_args,
         model_factory=task.model_factory,
         loss=task.loss,
         lr=lr,
         optimizer="AdamW",
-        optimizer_hparams={"weight_decay": 0.05},
+        optimizer_hparams={"weight_decay": weight_decay},
         freeze_backbone=freeze_backbone,
         ignore_index=task.ignore_index,
         scheduler="ReduceLROnPlateau",
@@ -177,6 +178,7 @@ def fit_model(
         IBMPixelwiseRegressionTask,
     ]:
         params["plot_on_val"] = False
+        params["class_weights"] = task.class_weights
     lightning_task = lightning_task_class(**params)
 
     callbacks: list[Callback] = [
@@ -259,6 +261,7 @@ def fit_model_with_hparams(
                     )
     lr = float(current_hparams.pop("lr", task.lr))
     batch_size = current_hparams.pop("batch_size", None)
+    weight_decay = float(current_hparams.pop("weight_decay", 0.05))
     if batch_size is not None:
         batch_size = int(batch_size)
     freeze_backbone = bool(current_hparams.pop("freeze_backbone", False))
@@ -276,6 +279,7 @@ def fit_model_with_hparams(
         trial,
         lr=lr,
         batch_size=batch_size,
+        weight_decay=weight_decay,
         freeze_backbone=freeze_backbone,
         save_models=save_models,
         precision=precision,
@@ -467,6 +471,7 @@ def ray_fit_model(
     model_args = copy.deepcopy(config)
     lr = float(model_args.pop("lr", task.lr))
     batch_size = model_args.pop("batch_size", None)
+    weight_decay = model_args.pop("weight_decay", 0.05)
     if batch_size is not None:
         batch_size = int(batch_size)
     freeze_backbone = bool(model_args.pop("freeze_backbone", False))
@@ -476,18 +481,26 @@ def ray_fit_model(
             batch_size  # TODO: not sure if this will work, check
         )
 
-    lightning_task = lightning_task_class(
-        model_args,
-        task.model_factory,
+    params: dict[str, Any] = dict(
+        model_args=model_args,
+        model_factory=task.model_factory,
         loss=task.loss,
         lr=lr,
         optimizer="AdamW",
-        optimizer_hparams={"weight_decay": 0.05},
+        optimizer_hparams={"weight_decay": weight_decay},
         freeze_backbone=freeze_backbone,
         ignore_index=task.ignore_index,
         scheduler="ReduceLROnPlateau",
         # scheduler_hparams={"patience": 5},
     )
+    if lightning_task_class in [
+        IBMSemanticSegmentationTask,
+        IBMPixelwiseRegressionTask,
+    ]:
+        params["plot_on_val"] = False
+        params["class_weights"] = task.class_weights
+    
+    lightning_task = lightning_task_class(**params)
     callbacks: list[Callback] = [
         # RayReportCallback(), for ddp if required in the future
         _TuneReportCallback(metrics=[task.metric], save_checkpoints=save_models),
