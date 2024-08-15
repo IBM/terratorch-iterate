@@ -32,6 +32,8 @@ init_args:
   val_split: /dccstor/geofm-finetuning/flood_mapping/sen1floods11/splits/splits/flood_handlabeled/flood_valid_data_S2_geodn.txt
   img_grep: "*_S2GeodnHand.tif"
   label_grep: "*_LabelHand.tif"
+  no_label_replace: -1
+  no_data_replace: 0
   means:
     - 0.107582
     - 0.13471393

@@ -49,7 +49,7 @@ from ray.tune.schedulers import FIFOScheduler
 from ray.tune.schedulers.hb_bohb import HyperBandForBOHB
 from ray.tune.search.bohb import TuneBOHB
 from ray.tune.search.optuna import OptunaSearch
-from terratorch.tasks import IBMPixelwiseRegressionTask, IBMSemanticSegmentationTask
+from terratorch.tasks import PixelwiseRegressionTask, SemanticSegmentationTask
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torchgeo.datamodules import BaseDataModule
 from torchgeo.trainers import BaseTask
@@ -174,8 +174,8 @@ def fit_model(
         scheduler="ReduceLROnPlateau",
     )
     if lightning_task_class in [
-        IBMSemanticSegmentationTask,
-        IBMPixelwiseRegressionTask,
+        SemanticSegmentationTask,
+        PixelwiseRegressionTask,
     ]:
         params["plot_on_val"] = False
         params["class_weights"] = task.class_weights
@@ -494,8 +494,8 @@ def ray_fit_model(
         # scheduler_hparams={"patience": 5},
     )
     if lightning_task_class in [
-        IBMSemanticSegmentationTask,
-        IBMPixelwiseRegressionTask,
+        SemanticSegmentationTask,
+        PixelwiseRegressionTask,
     ]:
         params["plot_on_val"] = False
         params["class_weights"] = task.class_weights
