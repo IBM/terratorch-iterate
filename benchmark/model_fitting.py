@@ -154,7 +154,6 @@ def fit_model(
     precision: _PRECISION_INPUT = "16-mixed",
 ) -> tuple[float, str]:
     pl.seed_everything(SEED, workers=True)
-    torch.set_float32_matmul_precision("high")
     if batch_size:
         task.datamodule.batch_size = (
             batch_size  # TODO: not sure if this will work, check
@@ -168,6 +167,7 @@ def fit_model(
         loss=task.loss,
         lr=lr,
         optimizer="AdamW",
+        # optimizer_hparams={"weight_decay": weight_decay, "layer_decay": True, "num_layers": 24},
         optimizer_hparams={"weight_decay": weight_decay},
         freeze_backbone=freeze_backbone,
         ignore_index=task.ignore_index,
@@ -461,7 +461,6 @@ def ray_fit_model(
     precision: _PRECISION_INPUT = "16-mixed",
 ) -> None:
     print(config)
-    torch.set_float32_matmul_precision("high")
     pl.seed_everything(SEED, workers=True)
     tune.utils.wait_for_gpu(
         target_util=0.07, delay_s=10, retry=50

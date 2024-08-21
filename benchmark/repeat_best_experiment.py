@@ -39,7 +39,6 @@ def remote_fit(
     seed: int,
     precision: _PRECISION_INPUT = "16-mixed",
 ) -> float | None:
-    torch.set_float32_matmul_precision("high")
     seed_everything(seed, workers=True)
 
     lr = float(model_args.pop("lr", task.lr))
