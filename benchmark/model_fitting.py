@@ -152,7 +152,7 @@ def fit_model(
     weight_decay: float = 0.05,
     freeze_backbone: bool = False,
     save_models: bool = False,
-    precision: _PRECISION_INPUT = "16-mixed",
+    precision: _PRECISION_INPUT = "32",
 ) -> tuple[float, str]:
     pl.seed_everything(SEED, workers=True)
     if batch_size:

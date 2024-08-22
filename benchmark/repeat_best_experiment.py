@@ -37,7 +37,7 @@ def remote_fit(
     task: Task,
     lightning_task_class: valid_task_types,
     seed: int,
-    precision: _PRECISION_INPUT = "16-mixed",
+    precision: _PRECISION_INPUT = "32",
 ) -> float | None:
     seed_everything(seed, workers=True)
 
@@ -109,7 +109,7 @@ def rerun_best_from_backbone(
     ray_storage_path: str | None = None,
     optimization_space: optimization_space_type | None = None,
     save_models: bool = False,
-    precision: _PRECISION_INPUT = "16-mixed",
+    precision: _PRECISION_INPUT = "32",
     **kwargs,
 ):
     ray.init()

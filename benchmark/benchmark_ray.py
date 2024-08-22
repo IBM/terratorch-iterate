@@ -29,7 +29,7 @@ def benchmark_backbone_on_task(
     optimization_space: optimization_space_type | None = None,
     n_trials: int = 1,
     save_models: bool = False,
-    precision: _PRECISION_INPUT = "16-mixed",
+    precision: _PRECISION_INPUT = "32",
     backbone_import: str|None = None
 ) -> dict:
     with mlflow.start_run(
@@ -129,7 +129,7 @@ def benchmark_backbone(
     optimization_space: optimization_space_type | None = None,
     save_models: bool = False,
     run_id: str | None = None,
-    precision: _PRECISION_INPUT = "16-mixed",
+    precision: _PRECISION_INPUT = "32",
 ):
     """Highest level function to benchmark a backbone using a ray cluster
 
