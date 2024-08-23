@@ -67,7 +67,7 @@ def remote_fit(
 
     if task.reduce_lr_on_plateau:
         params["scheduler"] = "ReduceLROnPlateau"
-        params["scheduler_hparams"] = {"metric": "val/loss"}
+        params["scheduler_hparams"] = {"monitor": "val/loss"}
         if isinstance(task.reduce_lr_on_plateau, int):
             params["scheduler_hparams"]["patience"] = task.reduce_lr_on_plateau
     
