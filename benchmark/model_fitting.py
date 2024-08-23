@@ -157,7 +157,7 @@ def fit_model(
     pl.seed_everything(SEED, workers=True)
     if batch_size:
         task.datamodule.batch_size = (
-            batch_size  # TODO: not sure if this will work, check
+            batch_size
         )
     if lr is None:
         lr = task.lr
@@ -172,8 +172,13 @@ def fit_model(
         optimizer_hparams={"weight_decay": weight_decay},
         freeze_backbone=freeze_backbone,
         ignore_index=task.ignore_index,
-        scheduler="ReduceLROnPlateau",
     )
+
+    if task.reduce_lr_on_plateau:
+        params["scheduler"] = "ReduceLROnPlateau"
+        if isinstance(task.reduce_lr_on_plateau, int):
+            params["scheduler_hparams"] = {"patience": task.reduce_lr_on_plateau}
+            
     if lightning_task_class in [
         SemanticSegmentationTask,
         PixelwiseRegressionTask,
@@ -483,7 +488,7 @@ def ray_fit_model(
     model_args = inject_hparams(base_args, model_args)
     if batch_size:
         task.datamodule.batch_size = (
-            batch_size  # TODO: not sure if this will work, check
+            batch_size
         )
 
     params: dict[str, Any] = dict(
@@ -495,9 +500,12 @@ def ray_fit_model(
         optimizer_hparams={"weight_decay": weight_decay},
         freeze_backbone=freeze_backbone,
         ignore_index=task.ignore_index,
-        scheduler="ReduceLROnPlateau",
-        # scheduler_hparams={"patience": 5},
     )
+
+    if task.reduce_lr_on_plateau:
+        params["scheduler"] = "ReduceLROnPlateau"
+        if isinstance(task.reduce_lr_on_plateau, int):
+            params["scheduler_hparams"] = {"patience": task.reduce_lr_on_plateau}
     if lightning_task_class in [
         SemanticSegmentationTask,
         PixelwiseRegressionTask,

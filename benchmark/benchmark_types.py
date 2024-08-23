@@ -133,6 +133,7 @@ class Task:
         ignore_index (int | None): Index to ignore in task.
         early_stop_patience (int | None): Patience for early stopping of runs using Lightning Early Stopping Callback. If None, will not use early stopping. Defaults to 10.
         early_prune (bool): Whether to prune unpromising runs early. When this is true, a larger number of trials can / should be used. Defaults to False.
+        reduce_lr_on_plateau (bool | int): Whether to reduce lr on plateau of metric. If an int, will set that as the patience. Defaults to True.
         optimization_except (set[str]): Keys from hyperparameter space to ignore for this task.
     """
 
@@ -156,6 +157,7 @@ class Task:
     ignore_index: int | None = None
     early_stop_patience: int | None = 10
     early_prune: bool = False
+    reduce_lr_on_plateau: bool | int = True
     optimization_except: set[str] = field(default_factory=set)
 
 

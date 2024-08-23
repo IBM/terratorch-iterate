@@ -5,6 +5,7 @@ This module contains functions to re-run a best backbone with different seeds
 import warnings
 from ast import literal_eval
 from random import randint
+from typing import Any
 
 import mlflow
 import mlflow.entities
@@ -51,18 +52,26 @@ def remote_fit(
         task.datamodule.batch_size = batch_size
     if lr is None:
         lr = task.lr
+    weight_decay = model_args.pop("weight_decay", 0.05)
 
-    lightning_task = lightning_task_class(
-        model_args,
-        task.model_factory,
+    params: dict[str, Any] = dict(
+        model_args=model_args,
+        model_factory=task.model_factory,
         loss=task.loss,
         lr=lr,
         optimizer="AdamW",
-        optimizer_hparams={"weight_decay": 0.05},
+        optimizer_hparams={"weight_decay": weight_decay},
         freeze_backbone=freeze_backbone,
         ignore_index=task.ignore_index,
-        scheduler="ReduceLROnPlateau",
     )
+
+    if task.reduce_lr_on_plateau:
+        params["scheduler"] = "ReduceLROnPlateau"
+        if isinstance(task.reduce_lr_on_plateau, int):
+            params["scheduler_hparams"] = {"patience": task.reduce_lr_on_plateau}
+    
+    lightning_task = lightning_task_class(**params)
+    
     callbacks: list[Callback] = []
 
     if task.early_stop_patience is not None:
