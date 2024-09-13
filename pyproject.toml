@@ -25,8 +25,7 @@ pytest = { version = "*", optional = true }
 pytest-cov = { version = "*", optional = true }
 torch = "^2.2.0"
 torchvision = "^0.17.0"
-# terratorch = {git = "git@github.ibm.com:GeoFM-Finetuning/terratorch.git"}
-terratorch = {git = "git@github.ibm.com:GeoFM-Finetuning/terratorch.git", branch="fix/multi_gpu"}
+terratorch = {git = "https://github.com/IBM/terratorch.git"}
 more-itertools = "^10.2.0"
 mlflow = "^2.10.2"
 importlib-metadata = "4.13.0"
