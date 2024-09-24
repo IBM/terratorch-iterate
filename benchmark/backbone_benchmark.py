@@ -15,9 +15,10 @@ from optuna.pruners import HyperbandPruner
 from tabulate import tabulate
 
 from benchmark.benchmark_types import (
-    Backbone,
+    Defaults,
+    ParameterBounds,
     Task,
-    build_model_args,
+    combine_with_defaults,
     optimization_space_type,
 )
 from benchmark.model_fitting import fit_model, fit_model_with_hparams
@@ -26,7 +27,7 @@ direction_type_to_optuna = {"min": "minimize", "max": "maximize"}
 
 
 def benchmark_backbone_on_task(
-    backbone: Backbone,
+    defaults: Defaults,
     task: Task,
     storage_uri: str,
     experiment_name: str,
@@ -36,26 +37,24 @@ def benchmark_backbone_on_task(
     precision: _PRECISION_INPUT = "16-mixed",
 ) -> tuple[float, str | list[str] | None, dict[str, Any]]:
     with mlflow.start_run(
-        run_name=f"{backbone.backbone if isinstance(backbone.backbone, str) else str(type(backbone.backbone).__name__)}_{task.name}",
+        run_name=task.name,
         nested=True,
     ) as run:
-        lightning_task_class = task.type.get_class_from_enum()
-        model_args = build_model_args(backbone, task)
+        training_spec = combine_with_defaults(task, defaults)
+        task = training_spec.task
+        lightning_task_class = training_spec.task.type.get_class_from_enum()
 
         # if no optimization params, just run it
         if optimization_space is None:
             return (
                 *fit_model(
-                    backbone,
-                    model_args,
-                    task,
+                    training_spec,
                     lightning_task_class,
                     f"{run.info.run_name}",
                     experiment_name,
                     storage_uri,
                     run.info.run_id,
                     save_models=save_models,
-                    precision=precision,
                 ),
                 {},
             )
@@ -63,23 +62,20 @@ def benchmark_backbone_on_task(
         # if optimization parameters specified, do hyperparameter tuning
         study = optuna.create_study(
             direction=direction_type_to_optuna[
-                task.direction
+                training_spec.task.direction
             ],  # in the future may want to allow user to specify this
             pruner=HyperbandPruner(),
         )
         objective = partial(
             fit_model_with_hparams,
-            backbone,
-            task,
+            training_spec,
             lightning_task_class,
-            model_args,
-            f"{backbone.backbone if isinstance(backbone.backbone, str) else str(type(backbone.backbone).__name__)}_{task.name}",
+            task.name,
             experiment_name,
             optimization_space,
             storage_uri,
             run.info.run_id,
             save_models,
-            precision,
         )
         study.optimize(
             objective,
@@ -92,30 +88,49 @@ def benchmark_backbone_on_task(
         return study.best_value, task.metric, study.best_trial.params
 
 
+# Custom function to parse the optimization space argument
+def parse_optimization_space(space: dict | None) -> optimization_space_type | None:
+    if space is None:
+        return None
+    parsed_space: optimization_space_type = {}
+    for key, value in space.items():
+        if isinstance(value, dict):
+            try:
+                bounds = ParameterBounds(**value)
+                parsed_space[key] = bounds
+            except TypeError:
+                # Recursively parse nested optimization spaces
+                parsed_space[key] = parse_optimization_space(value)
+        elif isinstance(value, list):
+            # If it's a list, leave it as is
+            parsed_space[key] = value
+        else:
+            raise ValueError(f"Invalid type for {key}: {value}")
+    return parsed_space
+
 def benchmark_backbone(
-    backbone: Backbone,
-    experiment_name: str,
+    defaults: Defaults,
     tasks: list[Task],
+    experiment_name: str,
     storage_uri: str,
     ray_storage_path: str | None = None,
     backbone_import: str | None = None,
-    benchmark_suffix: str | None = None,
+    run_name: str | None = None,
     n_trials: int = 1,
-    optimization_space: optimization_space_type | None = None,
+    optimization_space: dict | None = None,
     save_models: bool = False,
     run_id: str | None = None,
-    precision: _PRECISION_INPUT = "16-mixed",
 ):
     """Highest level function to benchmark a backbone using a single node
 
     Args:
-        backbone (Backbone): Backbone to be used for the benchmark
+        defaults (Defaults): Defaults that are set for all tasks
+        tasks (list[Task]): List of Tasks to benchmark over. Will be combined with defaults to get the final parameters of the task.
         experiment_name (str): Name of the MLFlow experiment to be used.
-        tasks (list[Task]): List of Tasks to benchmark over.
         storage_uri (str): Path to storage location.
         ray_storage_path (str | None): Ignored. Exists for compatibility with ray configs.
         backbone_import (str | None): Path to module that will be imported to register a potential new backbone. Defaults to None.
-        benchmark_suffix (str | None, optional): Suffix to be added to benchmark run name. Defaults to None.
+        run_name (str | None, optional): Name of highest level mlflow run. Defaults to None.
         n_trials (int, optional): Number of hyperparameter optimization trials to run. Defaults to 1.
         optimization_space (optimization_space_type | None, optional): Parameters to optimize over. Should be a dictionary
             of strings (parameter name) to list (discrete set of possibilities) or ParameterBounds, defining a range to optimize over.
@@ -129,28 +144,21 @@ def benchmark_backbone(
         importlib.import_module(backbone_import)
     mlflow.set_tracking_uri(storage_uri)
     mlflow.set_experiment(experiment_name)
-    run_name = (
-        backbone.backbone
-        if isinstance(backbone.backbone, str)
-        else str(type(backbone.backbone).__name__)
-    )
-    if benchmark_suffix:
-        run_name += f"_{benchmark_suffix}"
 
+    optimization_space = parse_optimization_space(optimization_space)
     table_columns = ["Task", "Metric", "Best Score", "Hyperparameters"]
     table_entries = []
     with mlflow.start_run(run_name=run_name, run_id=run_id) as run:
         mlflow.set_tag("purpose", "backbone_benchmarking")
         for task in tasks:
             best_value, metric_name, hparams = benchmark_backbone_on_task(
-                backbone,
+                defaults,
                 task,
                 storage_uri,
                 experiment_name,
                 optimization_space=optimization_space,
                 n_trials=n_trials,
                 save_models=save_models,
-                precision=precision,
             )
             table_entries.append([task.name, metric_name, best_value, hparams])
 
@@ -163,7 +171,6 @@ def benchmark_backbone(
             "results_table.json",
             run.info.run_id,
         )
-
 
 def main():
     CLI(benchmark_backbone, fail_untyped=False)
