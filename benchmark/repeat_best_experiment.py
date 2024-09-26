@@ -114,13 +114,7 @@ def rerun_best_from_backbone(
     Args:
         parent_run_id (str): mlflow id of parent run
         output_path (str): path to store the results of the run
-        defaults (Defaults): _description_
-        tasks (list[Task]): _description_
-        experiment_name (str): _description_
-        storage_uri (str): _description_
-        backbone_import (str | None, optional): _description_. Defaults to None.
-        n_trials (int, optional): _description_. Defaults to 1.
-        ray_storage_path (str | None, optional): _description_. Defaults to None.
+        run_repetitions (int): How many runs (each with a different seed) to run per task.
 
     """
     if not os.path.isabs(output_path):

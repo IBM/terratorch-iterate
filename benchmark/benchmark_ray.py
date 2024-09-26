@@ -113,7 +113,7 @@ def benchmark_backbone(
     """Highest level function to benchmark a backbone using a ray cluster
 
     Args:
-       defaults (Defaults): Defaults that are set for all tasks
+        defaults (Defaults): Defaults that are set for all tasks
         tasks (list[Task]): List of Tasks to benchmark over. Will be combined with defaults to get the final parameters of the task.
         experiment_name (str): Name of the MLFlow experiment to be used.
         storage_uri (str): Path to MLFlow storage location.

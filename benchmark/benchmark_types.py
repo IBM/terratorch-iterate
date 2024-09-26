@@ -90,7 +90,7 @@ class Defaults:
 
     Args:
         trainer_args (dict): Arguments passed to Lightning Trainer.
-        task (dict): Arguments for the Terratorch Task.
+        terratorch_task (dict): Arguments for the Terratorch Task.
     """
 
     trainer_args: dict[str, Any] = field(default_factory=dict)
@@ -107,8 +107,13 @@ class Task:
     Args:
         name (str): Name for this task
         type (TaskTypeEnum): Type of task.
-        task (dict): Arguments for the Terratorch Task.
+        terratorch_task (dict): Arguments for the Terratorch Task.
         datamodule (BaseDataModule): Datamodule to be used.
+        direction (str): One of min or max. Direction to optimize the metric in.
+        metric (str): Metric to be optimized. Defaults to "val/loss".
+        early_prune (bool): Whether to prune unpromising runs early. Defaults to False.
+        early_stop_patience (int, None): Whether to use Lightning early stopping of runs. Defaults to None, which does not do early stopping.
+        optimization_except (str[str]): HyperParameters from the optimization space to be ignored for this task.
     """
 
     name: str

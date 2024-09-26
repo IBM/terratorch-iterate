@@ -44,7 +44,7 @@ jbsub -queue <ccc_queue> -cores <nodes x (min 8 cpu per gpu) + gpu> -mem <mem> .
 ```
 
 You may have to run `chmod +x start_ray_workers.sh`.
-You can provide multiple nodes in the command above. Each GPU will be used to launch a task. For each GPU, make sure there are at least 7 CPUs cores.
+You can provide multiple nodes in the command above. Each GPU will be used to launch a task. For each GPU, make sure there are at least 8 CPUs cores.
 
 At any time you may add more workers to the cluster which will be assigned trials to run.
 

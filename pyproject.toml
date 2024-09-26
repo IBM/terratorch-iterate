@@ -51,6 +51,9 @@ optuna-integration = "^3.6.0"
 torchmetrics = ">=0.10,<1.3.2"
 numpy = "1.26.4"
 albucore = "0.0.16"
+mkdocs-material = "^9.5.38"
+mkdocs-autorefs = "^1.2.0"
+mkdocstrings = {extras = ["python"], version = "^0.26.1"}
 
 [tool.poetry.extras]
 test = ["pytest", "pytest-cov"]
@@ -68,14 +71,13 @@ mypy = "*"
 six = "*"
 myst-parser = "*"
 ruff = "^0.2.2"
-mkdocs-material = "^9.5.11"
-mkdocstrings = {extras = ["python"], version = "^0.24.1"}
 debugpy = "^1.8.1"
 ipykernel = "^6.29.5"
 
 [tool.poetry.scripts]
 benchmark = "benchmark.backbone_benchmark:main"
 ray_benchmark = "benchmark.benchmark_ray:main"
+repeat_experiments = "benchmark.repeat_best_experiment:main"
 
 [tool.black]
 line-length = 88
