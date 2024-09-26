@@ -132,6 +132,7 @@ def benchmark_backbone(
     optimization_space: dict | None = None,
     save_models: bool = False,
     run_id: str | None = None,
+    description: str = "No description provided"
 ):
     """Highest level function to benchmark a backbone using a single node
 
@@ -148,6 +149,7 @@ def benchmark_backbone(
             of strings (parameter name) to list (discrete set of possibilities) or ParameterBounds, defining a range to optimize over. The structure should be the same as would be passed under tasks.terratorch_task. Defaults to None.
         save_models (bool, optional): Whether to save the model. Defaults to False.
         run_id (str | None): id of existing mlflow run to use as top-level run. Useful to add more experiments to a previous benchmark run. Defaults to None.
+        description (str): Optional description for mlflow parent run.
     """
     if backbone_import:
         importlib.import_module(backbone_import)
@@ -157,8 +159,7 @@ def benchmark_backbone(
     optimization_space = parse_optimization_space(optimization_space)
     table_columns = ["Task", "Metric", "Best Score", "Hyperparameters"]
     table_entries = []
-    with mlflow.start_run(run_name=run_name, run_id=run_id) as run:
-        mlflow.set_tag("purpose", "backbone_benchmarking")
+    with mlflow.start_run(run_name=run_name, run_id=run_id, description=description) as run:
         for task in tasks:
             best_value, metric_name, hparams = benchmark_backbone_on_task(
                 defaults,
