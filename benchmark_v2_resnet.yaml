@@ -1,9 +1,9 @@
 experiment_name: geobench_resnet
-run_name: resnet_50_rgb_only_test
+run_name: resnet_50_rgb_only
 defaults:
   trainer_args:
     precision: bf16-mixed # for these new models pretrained with bf16-mixed we should probably finetune with bf16-mixed
-    max_epochs: 2
+    max_epochs: 300
   terratorch_task:
     model_args:
       pretrained: True
@@ -698,8 +698,3 @@ optimization_space:
       min: 0
       max: 0.4
       type: real
-  model_args:
-    decoder_channels:
-      - 64
-      - 128
-      - 256
