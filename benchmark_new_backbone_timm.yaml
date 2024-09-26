@@ -1,10 +1,16 @@
-benchmark_suffix: test_benchmark_swin_3d
+run_name: test_benchmark_swin_3d_no_timm
 experiment_name: benchmark_test
 backbone_import: swin3d.prithvi_swin3d
-backbone:
-  backbone: prithvi_swin_3d
-  backbone_args:
-    pretrained: False
+defaults:
+  trainer_args:
+    precision: bf16-mixed # for these new models pretrained with bf16-mixed we should probably finetune with bf16-mixed
+    max_epochs: 2
+  terratorch_task:
+    model_factory: PrithviModelFactory
+    optimizer: AdamW
+    model_args:
+      pretrained: False
+      backbone: prithvi_swin_3d
 tasks:
   # - name: agb
   #   type: regression
@@ -64,28 +70,12 @@ n_trials: 4
 save_models: false
 storage_uri: /dccstor/geofm-finetuning/carlosgomes/benchmark/
 optimization_space:
-  # decoder:
-  #   - FCNDecoder
-  #   - UperNetDecoder
+  batch_size:
+      - 8
+      - 32
+      - 64
   lr:
-    min: 1e-6
     max: 1e-3
+    min: 1e-6
     type: real
     log: true
-  batch_size:
-    - 2
-    - 4
-    - 8
-    # - 32
-    # - 64
-  # decoder_channels:
-  #   - 32
-  #   - 64
-  #   - 128
-  # head_dropout:
-  #   min: 0
-  #   max: 0.8
-  #   type: real
-  freeze_backbone:
-    - true
-    - false

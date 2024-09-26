@@ -28,8 +28,8 @@ torchvision = ">=0.17.0"
 # terratorch = {git = "git@github.ibm.com:GeoFM-Finetuning/terratorch.git"}
 # terratorch = {git = "git@github.ibm.com:GeoFM-Finetuning/terratorch.git", branch="feature/multimae"}
 # terratorch = {git = "https://github.com/IBM/terratorch.git", branch="feature/geobench_partitions"}
-terratorch = {git = "https://github.com/IBM/terratorch.git", branch="feature/scale_mae_simplify"}
-# terratorch = {git = "https://github.com/IBM/terratorch.git"}
+# terratorch = {git = "https://github.com/IBM/terratorch.git", branch="feature/scale_mae_simplify"}
+terratorch = {git = "https://github.com/IBM/terratorch.git"}
 
 # temporal lat lon encoding
 # terratorch = {path = "/u/carlosgomes/terratorch_os/terratorch"}
