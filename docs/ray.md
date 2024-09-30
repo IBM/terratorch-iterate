@@ -31,7 +31,7 @@ jbsub -queue x86_24h -cores 2 -mem 32g ray start --head --port $RAY_PORT --dashb
 Find out the address of your ray head with `bpeek <ccc process number>` and store it in an environment variable with
 This will also tell you the url where you can check the ray cluster.
 
-```sh
+``` sh
 export RAY_ADDRESS="<address>"
 ```
 
@@ -39,9 +39,11 @@ export RAY_ADDRESS="<address>"
 
 Then, launch your workers:
 
-```sh
-jbsub -queue <ccc_queue> -cores <nodes x (min 8 cpu per gpu) + gpu> -mem <mem> ./start_ray_workers.sh -a <ray_head_ip>:$RAY_PORT
+``` sh
+jbsub -queue <ccc_queue> -cores <nodes x (min 8 cpu per gpu) + gpu> -mem <mem> ./start_ray_workers.sh -a <ray_head_ip>:$RAY_PORT -e <conda env>
 ```
+
+The `-e` option is required to activate the conda environment for the workers. If this is not passed, no conda env will be used, which may result in errors.
 
 You may have to run `chmod +x start_ray_workers.sh`.
 You can provide multiple nodes in the command above. Each GPU will be used to launch a task. For each GPU, make sure there are at least 8 CPUs cores.
