@@ -25,7 +25,7 @@ nav:
   - ray.md
   - plotting.md
   - repeating_experiments.md
-  - corrupted_runs.md
+  - troubleshooting.md
   - for_developers.md
 
 markdown_extensions:
