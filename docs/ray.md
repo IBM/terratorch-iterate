@@ -25,7 +25,7 @@ If on CCC, start a head node with:
 ```sh
 export RAY_PORT=20022 # or any other port you like
 export RAY_TMPDIR=/tmp/<your_tmp_dir> # replace this with a unique directory name for you. If another user specifies the same, you may get permission denied errors.
-jbsub -queue x86_24h -cores 2 -mem 32g ray start --head --port $RAY_PORT --dashboard-port $((RAY_PORT + 1)) --include-dashboard True --dashboard-host 0.0.0.0 --object-store-memory 10000000000 --num-cpus 2 --num-gpus 0 --temp-dir $TMP_DIR
+jbsub -queue x86_24h -cores 2 -mem 32g ray start --head --port $RAY_PORT --dashboard-port $((RAY_PORT + 1)) --include-dashboard True --dashboard-host 0.0.0.0 --object-store-memory 10000000000 --num-cpus 2 --num-gpus 0 --temp-dir $RAY_TMPDIR
 ```
 
 Find out the address of your ray head with `bpeek <ccc process number>` and store it in an environment variable with
