@@ -326,7 +326,7 @@ def fit_model(
         default_callbacks
     )  # type: ignore
 
-    trainer = Trainer(**training_spec_copy.trainer_args)
+    trainer = Trainer(**training_spec_copy.trainer_args, enable_progress_bar=False, enable_checkpointing=save_models)
 
     return launch_training(
         trainer,
@@ -547,7 +547,7 @@ def ray_fit_model(
         "callbacks", []
     ).extend(default_callbacks)
 
-    trainer = Trainer(**training_spec_with_generated_hparams.trainer_args, enable_progress_bar=False)
+    trainer = Trainer(**training_spec_with_generated_hparams.trainer_args, enable_progress_bar=False, enable_checkpointing=False)
 
     # trainer = prepare_trainer(trainer)
 
@@ -560,7 +560,7 @@ def ray_fit_model(
             run_id=run.info.run_id,
             run_name=run.info.run_name,
             save_dir=storage_uri,
-            log_model=False,
+            log_model=save_models,
         )
 
         # explicitly log batch_size. Since it is not a model param, it will not be logged

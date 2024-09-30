@@ -77,7 +77,7 @@ def remote_fit(
             if not isinstance(c, ModelCheckpoint)
         ]  # type: ignore
 
-    trainer = Trainer(**training_spec_with_generated_hparams.trainer_args, enable_progress_bar=False)
+    trainer = Trainer(**training_spec_with_generated_hparams.trainer_args, enable_progress_bar=False, enable_checkpointing=False)
     try:
         trainer.fit(lightning_task, datamodule=task.datamodule)
         metrics = trainer.test(

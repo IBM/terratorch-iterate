@@ -26,6 +26,7 @@ nav:
   - plotting.md
   - repeating_experiments.md
   - corrupted_runs.md
+  - for_developers.md
 
 markdown_extensions:
   - pymdownx.highlight:

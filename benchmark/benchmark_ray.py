@@ -124,7 +124,7 @@ def benchmark_backbone(
         n_trials (int, optional): Number of hyperparameter optimization trials to run. Defaults to 1.
         optimization_space (dict | None): Parameters to optimize over. Should be a dictionary (may be nested)
             of strings (parameter name) to list (discrete set of possibilities) or ParameterBounds, defining a range to optimize over. The structure should be the same as would be passed under tasks.terratorch_task. Defaults to None.
-        save_models (bool, optional): Whether to save the model. Defaults to False.
+        save_models (bool, optional): Whether to save the models. Defaults to False.
         run_id (str | None): id of existing mlflow run to use as top-level run. Useful to add more experiments to a previous benchmark run. Defaults to None.
         description (str): Optional description for mlflow parent run.
     """
