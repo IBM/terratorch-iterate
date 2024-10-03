@@ -311,22 +311,18 @@ def fit_model(
         default_callbacks.append(
             ModelCheckpoint(monitor=task.metric, mode=task.direction)
         )
-    else:
-        training_spec_copy.trainer_args["enable_checkpointing"] = False
-        # remove model saving callbacks
-        if "callbacks" in training_spec_copy.trainer_args:
-            training_spec_copy.trainer_args["callbacks"] = [  # type: ignore
-                c
-                for c in training_spec_copy.trainer_args["callbacks"]  # type: ignore
-                if not isinstance(c, ModelCheckpoint)
-            ]  # type: ignore
-
+    if "enable_checkpointing" in training_spec_copy.trainer_args:
+        warnings.warn(f"enable_checkpointing found. Will be overwritten to the value of save_models {save_models}")
+    training_spec_copy.trainer_args["enable_checkpointing"] = save_models
+    if "enable_progress_bar" in training_spec_copy.trainer_args:
+        warnings.warn("enable_progress_bar found. Will be overwritten to False")
+    training_spec_copy.trainer_args["enable_progress_bar"] = False
     # get callbacks (set to empty list if none defined) and extend with default ones
     training_spec_copy.trainer_args.setdefault("callbacks", []).extend(
         default_callbacks
     )  # type: ignore
 
-    trainer = Trainer(**training_spec_copy.trainer_args, enable_progress_bar=False, enable_checkpointing=save_models)
+    trainer = Trainer(**training_spec_copy.trainer_args)
 
     return launch_training(
         trainer,
@@ -542,12 +538,20 @@ def ray_fit_model(
     default_callbacks: list[Callback] = get_default_callbacks(task.early_stop_patience)
     default_callbacks.append(_TuneReportCallback(metrics=[task.metric], save_checkpoints=save_models))
 
+    if "enable_checkpointing" in training_spec_with_generated_hparams.trainer_args:
+        warnings.warn("enable_checkpointing found. Will be overwritten to False as ray will be responsible for saving models.")
+    training_spec_with_generated_hparams.trainer_args["enable_checkpointing"] = False
+    if "enable_progress_bar" in training_spec_with_generated_hparams.trainer_args:
+        warnings.warn("enable_progress_bar found. Will be overwritten to False")
+    training_spec_with_generated_hparams.trainer_args["enable_progress_bar"] = False
+    
     # get callbacks (set to empty list if none defined) and extend with default ones
     training_spec_with_generated_hparams.trainer_args.setdefault(
         "callbacks", []
     ).extend(default_callbacks)
 
-    trainer = Trainer(**training_spec_with_generated_hparams.trainer_args, enable_progress_bar=False, enable_checkpointing=False)
+    trainer = Trainer(**training_spec_with_generated_hparams.trainer_args)
+
 
     # trainer = prepare_trainer(trainer)
 
