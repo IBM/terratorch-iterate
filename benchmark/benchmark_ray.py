@@ -39,7 +39,7 @@ def benchmark_backbone_on_task(
     ) as run:
         # if no optimization params, just run it
         if optimization_space is None:
-            raise Exception("For no optimiation space, run benchmark.py")
+            raise Exception("For no optimization space, run benchmark.py")
 
         results = ray_tune_model(
             training_spec,

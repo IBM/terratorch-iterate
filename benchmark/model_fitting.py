@@ -22,6 +22,7 @@ from lightning.pytorch.callbacks import (
     EarlyStopping,
     LearningRateMonitor,
     ModelCheckpoint,
+    Timer
 )
 from lightning.pytorch.loggers.mlflow import MLFlowLogger
 
@@ -143,13 +144,17 @@ def inject_hparams(training_spec: TrainingSpec, config: dict):
     )
     return training_spec_with_generated_hparams
 
-def get_default_callbacks(early_stop_patience: int | None) -> list[Callback]:
+def get_default_callbacks(early_stop_patience: int | None, max_run_duration: str | None) -> list[Callback]:
     default_callbacks: list[Callback] = [
         LearningRateMonitor(logging_interval="epoch"),
     ]
     if early_stop_patience is not None:
         default_callbacks.append(
             EarlyStopping("val/loss", patience=early_stop_patience)
+        )
+    if max_run_duration is not None:
+        default_callbacks.append(
+            Timer(duration=max_run_duration)
         )
     return default_callbacks
 
@@ -300,7 +305,7 @@ def fit_model(
         warnings.warn(
             "Callbacks passed to trainer. Make sure these are stateless, as they will not be reinitialized for each task!"
         )
-    default_callbacks: list[Callback] = get_default_callbacks(task.early_stop_patience)
+    default_callbacks: list[Callback] = get_default_callbacks(task.early_stop_patience, task.max_run_duration)
 
     if task.early_prune and trial is not None:
         default_callbacks.append(
@@ -535,7 +540,7 @@ def ray_fit_model(
             "Callbacks passed to trainer. Make sure these are stateless, as they will not be reinitialized for each task!"
         )
 
-    default_callbacks: list[Callback] = get_default_callbacks(task.early_stop_patience)
+    default_callbacks: list[Callback] = get_default_callbacks(task.early_stop_patience, task.max_run_duration)
     default_callbacks.append(_TuneReportCallback(metrics=[task.metric], save_checkpoints=save_models))
 
     if "enable_checkpointing" in training_spec_with_generated_hparams.trainer_args:

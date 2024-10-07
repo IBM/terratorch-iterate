@@ -114,6 +114,8 @@ class Task:
         early_prune (bool): Whether to prune unpromising runs early. Defaults to False.
         early_stop_patience (int, None): Whether to use Lightning early stopping of runs. Defaults to None, which does not do early stopping.
         optimization_except (str[str]): HyperParameters from the optimization space to be ignored for this task.
+        max_run_duration (str, None): maximum allowed run duration in the form DD:HH:MM:SS; will stop a run after this
+            amount of time. Defaults to None, which doesn't stop runs by time.
     """
 
     name: str
@@ -125,6 +127,7 @@ class Task:
     early_prune: bool = False
     early_stop_patience: int | None = None
     optimization_except: set[str] = field(default_factory=set)
+    max_run_duration: str | None = None
 
 @dataclass
 class TrainingSpec:
