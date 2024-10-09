@@ -27,6 +27,7 @@ nav:
   - repeating_experiments.md
   - troubleshooting.md
   - for_developers.md
+  - handover.md
 
 markdown_extensions:
   - pymdownx.highlight:
