@@ -63,7 +63,7 @@ def remote_fit(
             "Callbacks passed to trainer. Make sure these are stateless, as they will not be reinitialized for each task!"
         )
 
-    default_callbacks: list[Callback] = get_default_callbacks(task.early_stop_patience)
+    default_callbacks: list[Callback] = get_default_callbacks(task.early_stop_patience, task.max_run_duration)
     # get callbacks (set to empty list if none defined) and extend with default ones
     training_spec_with_generated_hparams.trainer_args.setdefault("callbacks", []).extend(
         default_callbacks
