@@ -105,6 +105,7 @@ def rerun_best_from_backbone(
     save_models: bool = False,
     run_id: str | None = None,
     optimization_space: dict | None = None,
+    description: str | None = None,
     **kwargs,
 ):
     """Repeat best experiments from a benchmark run. Only works with a ray cluster.
