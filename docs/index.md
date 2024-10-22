@@ -57,6 +57,8 @@ To do this it relies on a configuration file where the benchmark is defined. Thi
 
 - `optimization_space`: Hyperparameter space to search over. Bayesian optimization tends to work well with a small number of hyperparameters.
 
+- `bayesian_search`: Whether to perform a bayesian search (future hparam configs depend on results of past runs) or a random search. Defaults to True, which does bayesian search.
+
 See `benchmark_v2_template.yaml` in the git repo for an example.
 
 To run a benchmark, use `benchmark --config <benchmark_file>`.

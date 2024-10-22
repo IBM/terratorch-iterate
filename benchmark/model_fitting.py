@@ -22,7 +22,7 @@ from lightning.pytorch.callbacks import (
     EarlyStopping,
     LearningRateMonitor,
     ModelCheckpoint,
-    Timer
+    Timer,
 )
 from lightning.pytorch.loggers.mlflow import MLFlowLogger
 
@@ -48,7 +48,7 @@ from ray.tune.experiment import Trial
 from ray.tune.integration.pytorch_lightning import TuneReportCheckpointCallback
 from ray.tune.schedulers import FIFOScheduler, TrialScheduler
 from ray.tune.schedulers.hb_bohb import HyperBandForBOHB
-from ray.tune.search import Searcher
+from ray.tune.search import SearchAlgorithm, Searcher
 from ray.tune.search.bohb import TuneBOHB
 from ray.tune.search.optuna import OptunaSearch
 from terratorch.tasks import PixelwiseRegressionTask, SemanticSegmentationTask
@@ -319,9 +319,7 @@ def fit_model(
     if "enable_checkpointing" in training_spec_copy.trainer_args:
         warnings.warn(f"enable_checkpointing found. Will be overwritten to the value of save_models {save_models}")
     training_spec_copy.trainer_args["enable_checkpointing"] = save_models
-    if "enable_progress_bar" in training_spec_copy.trainer_args:
-        warnings.warn("enable_progress_bar found. Will be overwritten to False")
-    training_spec_copy.trainer_args["enable_progress_bar"] = False
+    training_spec_copy.trainer_args["enable_progress_bar"] = training_spec_copy.trainer_args.get("enable_progress_bar", True)
     # get callbacks (set to empty list if none defined) and extend with default ones
     training_spec_copy.trainer_args.setdefault("callbacks", []).extend(
         default_callbacks
@@ -397,7 +395,11 @@ def ray_tune_model(
     save_models: bool,
     num_trials: int,
     backbone_import: str | None = None,
+    searcher: Searcher | SearchAlgorithm | None = None,
 ) -> tune.ResultGrid:
+    
+    if not searcher:
+        raise ValueError("searcher must be specified")
     trainable = tune.with_parameters(
         ray_fit_model,
         training_spec=training_spec,
@@ -421,7 +423,7 @@ def ray_tune_model(
     # Early stopping
     # It is unclear if this is working properly when checkpoints are disabled
     if task.early_prune:
-        search_alg: Searcher = TuneBOHB()
+        search_alg: Searcher | SearchAlgorithm = TuneBOHB()
         scheduler: TrialScheduler = HyperBandForBOHB(
             time_attr="training_iteration",
             max_t=training_spec.trainer_args["max_epochs"],
@@ -434,7 +436,7 @@ def ray_tune_model(
             )
     else:
         scheduler = FIFOScheduler()
-        search_alg = OptunaSearch()
+        search_alg = searcher
 
     # monkey patch scheduler to add trial storage dir
     def decorate_to_add_trial_info(fn: Callable):

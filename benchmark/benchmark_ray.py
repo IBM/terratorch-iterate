@@ -9,6 +9,9 @@ import mlflow
 import pandas as pd
 import ray
 from jsonargparse import CLI
+from ray.tune.search import SearchAlgorithm, Searcher
+from ray.tune.search.basic_variant import BasicVariantGenerator
+from ray.tune.search.optuna import OptunaSearch
 from tabulate import tabulate
 
 from benchmark.backbone_benchmark import parse_optimization_space
@@ -31,8 +34,11 @@ def benchmark_backbone_on_task(
     optimization_space: optimization_space_type | None = None,
     n_trials: int = 1,
     save_models: bool = False,
-    backbone_import: str|None = None
+    backbone_import: str|None = None,
+    searcher: SearchAlgorithm | None = None
 ) -> dict:
+    if not searcher:
+        raise ValueError("Searcher must not be None")
     with mlflow.start_run(
         run_name=training_spec.task.name,
         nested=True,
@@ -50,7 +56,8 @@ def benchmark_backbone_on_task(
             experiment_name,
             save_models,
             n_trials,
-            backbone_import=backbone_import
+            backbone_import=backbone_import,
+            searcher=searcher
         )
 
         mlflow.log_table(
@@ -111,7 +118,8 @@ def benchmark_backbone(
     optimization_space: dict | None = None,
     save_models: bool = False,
     run_id: str | None = None,
-    description: str = "No description provided"
+    description: str = "No description provided",
+    bayesian_search: bool = True,
 ):
     """Highest level function to benchmark a backbone using a ray cluster
 
@@ -130,6 +138,7 @@ def benchmark_backbone(
         save_models (bool, optional): Whether to save the models. Defaults to False.
         run_id (str | None): id of existing mlflow run to use as top-level run. Useful to add more experiments to a previous benchmark run. Defaults to None.
         description (str): Optional description for mlflow parent run.
+        bayesian_search (bool): Whether to use bayesian optimization for the hyperparameter search. False uses random sampling. Defaults to True.
     """
     if tmp_dir is None:
         raise Exception("tmp_dir must be specified for runs with ray.")
@@ -140,6 +149,11 @@ def benchmark_backbone(
     mlflow.set_tracking_uri(storage_uri)
     mlflow.set_experiment(experiment_name)
     # mlflow.pytorch.autolog(log_datasets=False)
+
+    if bayesian_search:
+        searcher: Searcher | SearchAlgorithm = OptunaSearch()
+    else:
+        searcher = BasicVariantGenerator()
 
     optimization_space = parse_optimization_space(optimization_space)
 
@@ -202,7 +216,8 @@ def benchmark_backbone(
                         optimization_space=optimization_space,
                         n_trials=n_trials,
                         save_models=save_models,
-                        backbone_import=backbone_import
+                        backbone_import=backbone_import,
+                        searcher=searcher
                     )
                 )
 

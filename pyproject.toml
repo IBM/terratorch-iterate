@@ -53,7 +53,7 @@ albucore = "0.0.16"
 mkdocs-material = "^9.5.38"
 mkdocs-autorefs = "^1.2.0"
 mkdocstrings = {extras = ["python"], version = "^0.26.1"}
-geobench = "^1.0.0"
+geobench = {git = "https://github.com/ServiceNow/geo-bench.git"}
 
 [tool.poetry.extras]
 test = ["pytest", "pytest-cov"]

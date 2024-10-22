@@ -11,6 +11,7 @@ import pandas as pd
 import torch
 from jsonargparse import CLI
 from optuna.pruners import HyperbandPruner
+from optuna.samplers import BaseSampler, RandomSampler
 from tabulate import tabulate
 
 from benchmark.benchmark_types import (
@@ -44,6 +45,7 @@ def benchmark_backbone_on_task(
     optimization_space: optimization_space_type | None = None,
     n_trials: int = 1,
     save_models: bool = False,
+    sampler: BaseSampler | None = None
 ) -> tuple[float, str | list[str] | None, dict[str, Any]]:
     with mlflow.start_run(
         run_name=task.name,
@@ -72,6 +74,7 @@ def benchmark_backbone_on_task(
 
         # if optimization parameters specified, do hyperparameter tuning
         study = optuna.create_study(
+            sampler=sampler,
             direction=direction_type_to_optuna[
                 training_spec.task.direction
             ],  # in the future may want to allow user to specify this
@@ -132,7 +135,8 @@ def benchmark_backbone(
     optimization_space: dict | None = None,
     save_models: bool = False,
     run_id: str | None = None,
-    description: str = "No description provided"
+    description: str = "No description provided",
+    bayesian_search: bool = True,
 ):
     """Highest level function to benchmark a backbone using a single node
 
@@ -150,11 +154,17 @@ def benchmark_backbone(
         save_models (bool, optional): Whether to save the model. Defaults to False.
         run_id (str | None): id of existing mlflow run to use as top-level run. Useful to add more experiments to a previous benchmark run. Defaults to None.
         description (str): Optional description for mlflow parent run.
+        bayesian_search (bool): Whether to use bayesian optimization for the hyperparameter search. False uses random sampling. Defaults to True.
     """
     if backbone_import:
         importlib.import_module(backbone_import)
     mlflow.set_tracking_uri(storage_uri)
     mlflow.set_experiment(experiment_name)
+
+    if bayesian_search:
+        sampler: BaseSampler | None = None # take the default
+    else:
+        sampler = RandomSampler()
 
     optimization_space = parse_optimization_space(optimization_space)
     table_columns = ["Task", "Metric", "Best Score", "Hyperparameters"]
@@ -169,6 +179,7 @@ def benchmark_backbone(
                 optimization_space=optimization_space,
                 n_trials=n_trials,
                 save_models=save_models,
+                sampler=sampler
             )
             table_entries.append([task.name, metric_name, best_value, hparams])
 
