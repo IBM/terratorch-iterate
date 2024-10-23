@@ -29,7 +29,8 @@ torchvision = ">=0.17.0"
 # terratorch = {git = "git@github.ibm.com:GeoFM-Finetuning/terratorch.git", branch="feature/multimae"}
 # terratorch = {git = "https://github.com/IBM/terratorch.git", branch="feature/geobench_partitions"}
 # terratorch = {git = "https://github.com/IBM/terratorch.git", branch="feature/scale_mae_simplify"}
-terratorch = {git = "https://github.com/IBM/terratorch.git"}
+# terratorch = {git = "https://github.com/IBM/terratorch.git"}
+terratorch = "*"
 
 # temporal lat lon encoding
 # terratorch = {path = "/u/carlosgomes/terratorch_os/terratorch"}
@@ -53,7 +54,8 @@ albucore = "0.0.16"
 mkdocs-material = "^9.5.38"
 mkdocs-autorefs = "^1.2.0"
 mkdocstrings = {extras = ["python"], version = "^0.26.1"}
-geobench = {git = "https://github.com/ServiceNow/geo-bench.git"}
+# geobench = {git = "https://github.com/ServiceNow/geo-bench.git"}
+geobench = ">=1.0.0"
 
 [tool.poetry.extras]
 test = ["pytest", "pytest-cov"]
