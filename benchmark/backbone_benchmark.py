@@ -24,6 +24,9 @@ from benchmark.model_fitting import fit_model, fit_model_with_hparams
 
 direction_type_to_optuna = {"min": "minimize", "max": "maximize"}
 
+import os
+from mlflow_utils import check_existing_experiments, check_existing_task_parent_runs
+
 
 def benchmark_backbone_on_task(
     backbone: Backbone,
@@ -138,31 +141,83 @@ def benchmark_backbone(
         run_name += f"_{benchmark_suffix}"
 
     table_columns = ["Task", "Metric", "Best Score", "Hyperparameters"]
-    table_entries = []
-    with mlflow.start_run(run_name=run_name, run_id=run_id) as run:
-        mlflow.set_tag("purpose", "backbone_benchmarking")
-        for task in tasks:
-            best_value, metric_name, hparams = benchmark_backbone_on_task(
-                backbone,
-                task,
-                storage_uri,
-                experiment_name,
-                optimization_space=optimization_space,
-                n_trials=n_trials,
-                save_models=save_models,
-                precision=precision,
-            )
-            table_entries.append([task.name, metric_name, best_value, hparams])
 
-        table = tabulate(table_entries, headers=table_columns)
-        print(table)
-        df = pd.DataFrame(data=table_entries, columns=table_columns)
-        df.set_index("Task")
-        mlflow.log_table(
-            df,
-            "results_table.json",
-            run.info.run_id,
-        )
+    #find status of existing runs, and delete incomplete runs except last one
+    existing_experiments = check_existing_experiments(storage_uri, experiment_name, run_name)
+
+    if not existing_experiments["no_existing_runs"]:
+        if (existing_experiments["incomplete_run_to_finish"] is not None) and (run_id is None):
+            print("Continuing previous experiment parent run")
+            run_id = existing_experiments["incomplete_run_to_finish"]
+            experiment_id = existing_experiments["experiment_id"]
+            run_hpo = True
+
+            # load previous table_entries
+            tables_folder = f"{storage_uri}_table_entries"
+            if not os.path.exists(tables_folder):
+                os.makedirs(tables_folder)
+            table_entries_filename = f"{tables_folder}/{experiment_name}-{run_id}_table_entries.pkl"
+            if os.path.exists(table_entries_filename):
+                with open(table_entries_filename, 'rb') as handle:
+                    table_entries = pickle.load(handle)
+            else:
+                table_entries = []
+
+            #get previously completed task runs
+            completed_task_run_names = check_existing_task_parent_runs(run_id, storage_uri, experiment_name)
+            print(f"The following task runs were completed previously: {completed_task_run_names}")
+
+        if existing_experiments["finished_run"] is not None:
+            run_hpo = False
+            finished_run_id = existing_experiments["finished_run"]
+    
+    #if there are no existing runs for this experiment name, start a new run from scratch
+    if existing_experiments["no_existing_runs"]:
+        print("Starting new experiment from scratch")
+        run_hpo = True
+        table_entries = []
+        completed_task_run_names = []
+
+    #only run hyperparameter optimization if there are no finished runs
+    if run_hpo:
+        with mlflow.start_run(run_name=run_name, run_id=run_id) as run:
+            mlflow.set_tag("purpose", "backbone_benchmarking")
+            for task in tasks:
+                #only run task if it was not completed before
+                task_run_name=f"{backbone.backbone if isinstance(backbone.backbone, str) else str(type(backbone.backbone).__name__)}_{task.name}"
+                if task_run_name in completed_task_run_names: 
+                    print(f"{task_run_name} already completed")
+                    continue
+                else:
+                    print(f"{task_run_name} not completed. starting now")
+
+                best_value, metric_name, hparams = benchmark_backbone_on_task(
+                    backbone,
+                    task,
+                    storage_uri,
+                    experiment_name,
+                    optimization_space=optimization_space,
+                    n_trials=n_trials,
+                    save_models=save_models,
+                    precision=precision,
+                )
+                table_entries.append([task.name, metric_name, best_value, hparams])
+
+                table_entries_filename = f"{storage_uri}/{experiment_name}-{run.info.run_id}_table_entries.pkl"
+
+                with open(table_entries_filename, 'wb') as handle:
+                    pickle.dump(table_entries, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                    
+
+            table = tabulate(table_entries, headers=table_columns)
+            print(table)
+            df = pd.DataFrame(data=table_entries, columns=table_columns)
+            df.set_index("Task")
+            mlflow.log_table(
+                df,
+                "results_table.json",
+                run.info.run_id,
+            )
 
 
 def main():
