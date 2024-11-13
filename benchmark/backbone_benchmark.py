@@ -107,6 +107,7 @@ def benchmark_backbone(
     optimization_space: optimization_space_type | None = None,
     save_models: bool = False,
     run_id: str | None = None,
+    resume: bool = False,
     precision: _PRECISION_INPUT = "16-mixed",
 ):
     """Highest level function to benchmark a backbone using a single node
@@ -141,45 +142,48 @@ def benchmark_backbone(
         run_name += f"_{benchmark_suffix}"
 
     table_columns = ["Task", "Metric", "Best Score", "Hyperparameters"]
+    table_entries = []
+    run_hpo = True
 
-    #find status of existing runs, and delete incomplete runs except last one
-    existing_experiments = check_existing_experiments(storage_uri, experiment_name, run_name)
+    if resume:
+        #find status of existing runs, and delete incomplete runs except the one with the most completed runs
+        existing_experiments = check_existing_experiments(storage_uri, experiment_name, run_name)
 
-    if not existing_experiments["no_existing_runs"]:
-        if (existing_experiments["incomplete_run_to_finish"] is not None) and (run_id is None):
-            print("Continuing previous experiment parent run")
-            run_id = existing_experiments["incomplete_run_to_finish"]
-            experiment_id = existing_experiments["experiment_id"]
-            run_hpo = True
-        
-        if existing_experiments["finished_run"] is not None:
-            run_hpo = False
-            finished_run_id = existing_experiments["finished_run"]
-            run_id = existing_experiments["finished_run"]
+        if not existing_experiments["no_existing_runs"] and (run_id is None):
+            if existing_experiments["incomplete_run_to_finish"] is not None:
+                print("Continuing previous experiment parent run")
+                run_id = existing_experiments["incomplete_run_to_finish"]
+            
+            if existing_experiments["finished_run"] is not None:
+                run_id = existing_experiments["finished_run"]
+                run_hpo = False
 
-        #get previously completed task runs
-        completed_task_run_names = check_existing_task_parent_runs(run_id, storage_uri, experiment_name)
-        print(f"The following task runs were completed previously: {completed_task_run_names}")
+            #get previously completed task runs
+            completed_task_run_names = check_existing_task_parent_runs(run_id, storage_uri, experiment_name)
+            print(f"The following task runs were completed previously: {completed_task_run_names}")
 
-        if len(completed_task_run_names) < len(tasks):
-            run_hpo = True
-            # load previous table_entries
-            tables_folder = f"{storage_uri}_table_entries"
-            if not os.path.exists(tables_folder):
-                os.makedirs(tables_folder)
-            table_entries_filename = f"{tables_folder}/{experiment_name}-{run_id}_table_entries.pkl"
-            if os.path.exists(table_entries_filename):
-                with open(table_entries_filename, 'rb') as handle:
-                    table_entries = pickle.load(handle)
-            else:
-                table_entries = []
+            #get tasks that should be completed
+            expected_task_run_names = [f"{backbone.backbone if isinstance(backbone.backbone, str) else str(type(backbone.backbone).__name__)}_{task.name}" \
+                                            for task in tasks]
+                
+            if sorted(completed_task_run_names) != sorted(expected_task_run_names):
+                run_hpo = True
+                # load previous table_entries
+                tables_folder = f"{storage_uri}_table_entries"
+                if not os.path.exists(tables_folder):
+                    os.makedirs(tables_folder)
+                table_entries_filename = f"{tables_folder}/{experiment_name}-{run_id}_table_entries.pkl"
+                if os.path.exists(table_entries_filename):
+                    with open(table_entries_filename, 'rb') as handle:
+                        table_entries = pickle.load(handle)
+                
+    else:
+        #if there are no existing runs for this experiment name, start a new run from scratch
+        if existing_experiments["no_existing_runs"]:
+            print("Starting new experiment from scratch")
+            completed_task_run_names = []
+
     
-    #if there are no existing runs for this experiment name, start a new run from scratch
-    if existing_experiments["no_existing_runs"]:
-        print("Starting new experiment from scratch")
-        run_hpo = True
-        table_entries = []
-        completed_task_run_names = []
 
     #only run hyperparameter optimization if there are no finished runs
     if run_hpo:
