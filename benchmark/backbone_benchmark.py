@@ -151,7 +151,18 @@ def benchmark_backbone(
             run_id = existing_experiments["incomplete_run_to_finish"]
             experiment_id = existing_experiments["experiment_id"]
             run_hpo = True
+        
+        if existing_experiments["finished_run"] is not None:
+            run_hpo = False
+            finished_run_id = existing_experiments["finished_run"]
+            run_id = existing_experiments["finished_run"]
 
+        #get previously completed task runs
+        completed_task_run_names = check_existing_task_parent_runs(run_id, storage_uri, experiment_name)
+        print(f"The following task runs were completed previously: {completed_task_run_names}")
+
+        if len(completed_task_run_names) < len(tasks):
+            run_hpo = True
             # load previous table_entries
             tables_folder = f"{storage_uri}_table_entries"
             if not os.path.exists(tables_folder):
@@ -162,14 +173,6 @@ def benchmark_backbone(
                     table_entries = pickle.load(handle)
             else:
                 table_entries = []
-
-            #get previously completed task runs
-            completed_task_run_names = check_existing_task_parent_runs(run_id, storage_uri, experiment_name)
-            print(f"The following task runs were completed previously: {completed_task_run_names}")
-
-        if existing_experiments["finished_run"] is not None:
-            run_hpo = False
-            finished_run_id = existing_experiments["finished_run"]
     
     #if there are no existing runs for this experiment name, start a new run from scratch
     if existing_experiments["no_existing_runs"]:
