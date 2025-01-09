@@ -102,6 +102,7 @@ def remote_fit(
 
 
 def non_remote_fit(
+    logger,
     experiment_name: str,
     parent_run_id: str,
     storage_uri: str,
@@ -116,8 +117,7 @@ def non_remote_fit(
     if backbone_import:
         importlib.import_module(backbone_import)
 
-
-    print(f"task in non_remote_fit: {task}")
+    logger.info(f"task in non_remote_fit: {task}")
 
     with mlflow.start_run(
     run_name= f"{task.name}_{seed}",
@@ -125,7 +125,7 @@ def non_remote_fit(
     ) as run:
         mlflow.set_tag("mlflow.parentRunId", parent_run_id)
         #mlflow.log_param("seed", seed)
-        #print(f"task.name {task.name}")
+        #logger.info(f"task.name {task.name}")
         #mlflow.log_param("task", task.name)
 
         training_spec_copy = copy.deepcopy(training_spec)
@@ -171,17 +171,15 @@ def non_remote_fit(
             metrics = metrics[0]
         except Exception as e:
             raise Exception(str(e))
-    #        warnings.warn(str(e))
-    #        return None
         test_metric = "test/" + task.metric.split("/")[1]
         mlflow.log_metric(f"test_{test_metric}", metrics[test_metric])
-        #mlflow.end_run()
         return metrics[test_metric]
 
 
 
 
 def rerun_best_from_backbone(
+    logger,
     parent_run_id: str,
     output_path: str,
     defaults: Defaults,
@@ -227,15 +225,14 @@ def rerun_best_from_backbone(
     runs: list[mlflow.entities.Run] = mlflow.search_runs(
         filter_string=f"tags.mlflow.parentRunId='{parent_run_id}'", output_format="list"
     )  # type: ignore
-    print(f"\nFound runs: {[run.info.run_name for run in runs]}")
+    logger.info(f"\nFound runs: {[run.info.run_name for run in runs]}")
 
     task_names = [task.name for task in tasks]
-    print(f"Will only run the following: {task_names}")
+    logger.info(f"Will only run the following: {task_names}")
 
     table_columns = ["Task", "Metric", "Score", "mlflow_run_name", "mlflow_run_id", "mlflow_run_status"]
     table_entries = []
     ray_tasks = []
-    does_not_need_to_be_run = []
     tasks_with_new_results = []
 
     repeated_storage_uri = f"{storage_uri}_repeated_exp"
@@ -251,7 +248,7 @@ def rerun_best_from_backbone(
         mlflow.set_tag("purpose", "backbone_benchmarking")
 
         for task in tasks:
-            print(f"\n\ntask: {task.name}")
+            logger.info(f"\n\ntask: {task.name}")
             matching_runs = [run for run in runs if run.info.run_name.endswith(task.name)]  # type: ignore
             if len(matching_runs) == 0:
                 msg = f"No runs found for task {task.name}. Skipping."
@@ -266,21 +263,21 @@ def rerun_best_from_backbone(
             past_output_path = glob.glob(past_output_path)
             if len(sorted(past_output_path)) > 0:
                 output_path = sorted(past_output_path)[0]
-            print(f"output path: {output_path}")
+            logger.info(f"output path: {output_path}")
             if os.path.exists(output_path):
-                print("there are previous results from repeated experiments")
+                logger.info("there are previous results from repeated experiments")
                 existing_output = pd.read_csv(output_path)
                 existing_output = existing_output[table_columns]
                 existing_task_output = existing_output.loc[existing_output["Task"]==task.name].copy()
                 rows, cols = existing_task_output.shape
-                print(f"rows: {rows} \t cols: {cols}")
+                logger.info(f"rows: {rows} \t cols: {cols}")
                 if rows > run_repetitions:
-                    print("task has valid results, will not re-run")
+                    logger.info("task has valid results, will not re-run")
                     continue
                 past_seeds = [int(item.split("_")[-1]) for item in existing_task_output["mlflow_run_name"].tolist()]
             else:
                 past_seeds = []
-            print(f"past_seeds for task: {past_seeds}")
+            logger.info(f"past_seeds for task: {past_seeds}")
 
             best_params = matching_runs[0].data.params
             # eval them
@@ -288,7 +285,7 @@ def rerun_best_from_backbone(
             training_spec = combine_with_defaults(task, defaults)
             lightning_task_class = training_spec.task.type.get_class_from_enum()
 
-            if use_ray: #does not work with past seeds (i.e. continuing in the middle of a task)
+            if use_ray: #ANYTHING WITH RAY HAS NOT BEEN TESTED
                 successful_seeds = [randint(1, 5000) for i in range(run_repetitions)]
                 for seed in successful_seeds:
                     ray_tasks.append(
@@ -310,17 +307,21 @@ def rerun_best_from_backbone(
                         break
 
                     seed_run_name = f"{task.name}_{seed}"
-                    print(f"now trying: {seed_run_name}")
+                    logger.info(f"now trying: {seed_run_name}")
+
+                    #remove any existing runs with the same name
                     seed_run_data = mlflow.search_runs(
                                 experiment_ids=[experiment_info.experiment_id],
                                 filter_string=f'tags."mlflow.runName" LIKE "{seed_run_name}"', output_format="list"
                             )  # type: ignore
                     if len(seed_run_data)>0:
                         for item in seed_run_data:
-                            print(f"deleting existing run: {item}")
+                            logger.info(f"deleting existing run: {item}")
                             mlflow.delete_run(item.info.run_id)
 
+                    #run model
                     score = non_remote_fit(
+                            logger = logger,
                             experiment_name = repeated_experiment_name,
                             parent_run_id = run.info.run_id,
                             storage_uri = repeated_storage_uri,
@@ -331,19 +332,22 @@ def rerun_best_from_backbone(
                             seed = seed,
                             backbone_import=backbone_import
                         )
-                    #check if run with name finished successfully
-                    print(f"score: {score}")
+                    
+                    #check if the run finished successfully
+                    logger.info(f"score: {score}")
                     time.sleep(3600*2)
                     seed_run_data = mlflow.search_runs(
                                 experiment_ids=[experiment_info.experiment_id],
                                 filter_string=f'tags."mlflow.runName" LIKE "{seed_run_name}"', output_format="list"
                             )  # type: ignore
 
-                    print(f"run for task {task.name} seed {seed} is :{seed_run_data}")
+                    logger.info(f"run for task {task.name} seed {seed} is :{seed_run_data}")
                     if len(seed_run_data)>0:
                         if seed_run_data[0].info.status != "FINISHED":
                             client.delete_run(seed_run_data[0].info.run_id)
                             continue
+
+                        #if the run was successful, save data
                         past_seeds.append(seed)
                         new_data = pd.DataFrame({
                                     "Task": [task.name], 
@@ -353,26 +357,25 @@ def rerun_best_from_backbone(
                                     "mlflow_run_id": [seed_run_data[0].info.run_id],
                                     "mlflow_run_status": [seed_run_data[0].info.status]
                                     })
-                        print(f"completed seeds so far for this task: {len(past_seeds)}")
+                        logger.info(f"completed seeds so far for this task: {len(past_seeds)}")
                         if os.path.exists(output_path):
-                            print("there are previous results from repeated experiments")
+                            logger.info("there are previous results from repeated experiments")
                             existing_output = pd.read_csv(output_path)
                             existing_output = existing_output[table_columns]
                             existing_output.reset_index(inplace=True)
                             existing_task_output = existing_output.loc[existing_output["Task"]==task.name].copy()
                             rows, cols = existing_task_output.shape
-                            print(f"rows: {rows} \t cols: {cols}")
+                            logger.info(f"rows: {rows} \t cols: {cols}")
                             if rows == 0:
-                                print("no past results for this task")
+                                logger.info("no past results for this task")
                             existing_output = pd.concat([existing_output,new_data], axis=0)
                             existing_output.reset_index(inplace=True)
                             existing_output.to_csv(output_path, index=False)
                         else:
                             new_data.to_csv(output_path, index=False)
-    #mlflow.end_run()
                 
 
-    if use_ray:
+    if use_ray:#ANYTHING WITH RAY HAS NOT BEEN TESTED
         results = ray.get(ray_tasks)
         table_entries = [
             [
@@ -387,11 +390,11 @@ def rerun_best_from_backbone(
         ]
 
         table = tabulate(table_entries, headers=table_columns)
-        print(table)
+        logger.info(table)
         df = pd.DataFrame(data=table_entries, columns=table_columns)
         df.to_csv(output_path, index=False)
 
-    if use_ray:
+    if use_ray:#ANYTHING WITH RAY HAS NOT BEEN TESTED
         ray.shutdown()
 
 
