@@ -72,7 +72,7 @@ def benchmark_backbone_on_task(
     optuna_db_path = f"{optuna_db_path}/{experiment_name}_{experiment_run_id}.db"
 
 
-    #check each the number of successful mlflow runs task
+    #check number of successful mlflow runs in task
     client = mlflow.tracking.MlflowClient(tracking_uri=storage_uri)
     completed_in_mlflow_for_task = []
     all_mlflow_runs_for_task = []
@@ -109,7 +109,7 @@ def benchmark_backbone_on_task(
             logger.info(f"too_many_trials {too_many_trials}")
             logger.info(f"no_existing_task {no_existing_task}")
 
-            #delete optuna study
+            #delete optuna study in database
             optuna.delete_study(study_name=task.name, 
                                 storage= "sqlite:///{}.db".format(optuna_db_path))
 
@@ -288,7 +288,7 @@ def benchmark_backbone(
     run_hpo = True
     task_run_to_id_match = {}
     if continue_existing_experiment:
-        #find status of existing runs, and delete incomplete runs except last one
+        #find status of existing runs, and delete incomplete runs except one with the most complete tasks
         existing_experiments = check_existing_experiments(
                                                         logger,
                                                         storage_uri, 
@@ -388,7 +388,7 @@ def benchmark_backbone(
             logger.info("HPO is not complete. Please re-run this experiment")
             raise RuntimeError
 
-    #do repeated experiments
+    #run repeated experiments
     logger.info(f"HPO complete. Now running repeated experiments \n\
                 Parent run: {finished_run_id} \n\
                 Experiment name: {experiment_name} \n\

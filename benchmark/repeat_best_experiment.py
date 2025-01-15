@@ -41,7 +41,7 @@ from benchmark.model_fitting import (
 
 
 @ray.remote(num_cpus=8, num_gpus=1)
-def remote_fit(
+def remote_fit(  #ANYTHING WITH RAY HAS NOT BEEN TESTED
     training_spec: TrainingSpec,
     lightning_task_class: valid_task_types,
     best_params: dict,
@@ -258,7 +258,7 @@ def rerun_best_from_backbone(
                 msg = f"More than 1 run found for task {task.name}"
                 raise Exception(msg)
 
-            #check if there are already results for this task and exp in the folder
+            #check if there are already results for this task and experiment in the folder
             past_output_path = f"{output_path.split(experiment_name)[0]}{experiment_name}_*"
             past_output_path = glob.glob(past_output_path)
             if len(sorted(past_output_path)) > 0:
@@ -375,7 +375,7 @@ def rerun_best_from_backbone(
                             new_data.to_csv(output_path, index=False)
                 
 
-    if use_ray:#ANYTHING WITH RAY HAS NOT BEEN TESTED
+    if use_ray: #ANYTHING WITH RAY HAS NOT BEEN TESTED
         results = ray.get(ray_tasks)
         table_entries = [
             [
@@ -394,7 +394,7 @@ def rerun_best_from_backbone(
         df = pd.DataFrame(data=table_entries, columns=table_columns)
         df.to_csv(output_path, index=False)
 
-    if use_ray:#ANYTHING WITH RAY HAS NOT BEEN TESTED
+    if use_ray: #ANYTHING WITH RAY HAS NOT BEEN TESTED
         ray.shutdown()
 
 
