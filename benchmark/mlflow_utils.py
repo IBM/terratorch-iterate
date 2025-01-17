@@ -5,6 +5,242 @@ import datetime
 import yaml
 import logging
 from typing import Any
+import plot_tools
+import pandas as pd
+import numpy as np
+import glob
+from pathlib import Path
+import datetime
+import yaml
+import seaborn as sns
+from matplotlib import pyplot as plt
+from ast import literal_eval
+
+SEGMENTATION_BASE_TASKS = ['chesapeake', 'sa_crop_type', 'pv4ger_seg', 'cashew', 'neontree', 'nz_cattle']
+CLASSIFICATION_BASE_TASKS = ['pv4ger', 'so2sat', 'brick_kiln', 'big_earth_net', 'eurosat', 'forestnet']
+
+
+
+def extract_repeated_experiment_results(
+        storage_uri: str,
+        logger,
+        task_type: str = "segmentation",
+        experiment_data_path: str = "job_status/combined_segmentation_final.csv",
+        num_repetitions: int = 10,
+        num_tasks:int = 6
+        ):
+
+    results_tables_dir = "/".join(storage_uri.split("/")[:-1]) + "/" + "repeated_exp_output_mlflow_final"
+    if not os.path.exists(results_tables_dir):
+        os.makedirs(results_tables_dir)
+    
+    task_names = SEGMENTATION_BASE_TASKS if task_type=="segmentation" else CLASSIFICATION_BASE_TASKS
+    
+    logger.info(f"\n\n\n\n\n\nSTARTING task_type: {task_type} storage_uri:{storage_uri}") 
+    experiment_data = pd.read_csv(experiment_data_path)
+    client = mlflow.tracking.MlflowClient(tracking_uri=storage_uri)
+
+    experiments = experiment_data["experiment_name"].tolist()
+    experiments = [exp.split(": ")[-1] for exp in experiments]
+    experiments = list(set(experiments))
+    experiments_to_be_run_again = []
+
+    for experiment_name in experiments:
+        experiment_name = f"{experiment_name}_repeated_exp"
+        logger.info(f"\n\n\nexperiment_name: {experiment_name}") 
+        experiment_info = client.get_experiment_by_name(experiment_name)
+        if experiment_info is None:
+            logger.info(f"NO experiment_info IN THIS FOLDER: {experiment_name}")
+            experiments_to_be_run_again.append(experiment_name)
+            continue
+        experiment_id = experiment_info.experiment_id
+        logger.info(f"experiment_id: {experiment_id}")
+        logger.info(f"experiment_name: {experiment_name}")
+        logger.info(f"experiment_info: {experiment_info}")
+        experiment_parent_run_data = client.search_runs(experiment_ids=[experiment_id])
+
+        run_names = []
+        run_ids = []
+        run_status = []
+        run_task = []
+        run_score = []
+        run_metric = []
+
+        for run in experiment_parent_run_data:
+            run_name = run.info.run_name
+            task = "_".join(run_name.split("_")[:-1])
+            
+            if (task in task_names) and (run.info.status =="FINISHED"):
+                seed = run.data.params["seed"] if "seed" in run.data.params else "NA"
+                if task_type == "segmentation":
+                    metric_name = 'test_test/Multiclass_Jaccard_Index' 
+                else:
+                    if task == "big_earth_net":
+                        metric_name = 'test_test/Multilabel_F1_Score'  
+                    else:
+                        metric_name = 'test_test/Overall_Accuracy'
+                
+                if metric_name not in run.data.metrics:
+                    continue
+                score = run.data.metrics[metric_name]
+                run_names.append(run.info.run_name)
+                run_ids.append(run.info.run_id)
+                run_status.append(run.info.status)
+                run_metric.append(metric_name.split("/")[-1])
+                run_task.append(task)
+                run_score.append(score)
+        
+        df = pd.DataFrame({
+            "Task": run_task,
+            "Metric": run_metric,
+            "Score": run_score,
+            "mlflow_run_name": run_names,
+            "mlflow_run_id": run_ids,
+            "mlflow_run_status": run_status
+        })
+        if len(run_task) == 0: 
+            logger.info(f"TO BE RE-RUN: {experiment_name}. \nHas NO tasks")
+            experiments_to_be_run_again.append(experiment_name)
+            continue
+
+        #get ten successful results per task
+        combine_task_results = []
+        for task in task_names:
+            task_df = df.loc[(df["Task"] == task) & (df["mlflow_run_status"] == "FINISHED") ].copy()
+            task_df = task_df.loc[(task_df["Score"] != 0.0)].copy()
+            rows, cols = task_df.shape
+            if rows >= num_repetitions:
+                task_df = task_df.iloc[list(range(num_repetitions))].copy()
+            elif rows < num_repetitions:
+                logger.info(f"NOT COMPLETE: task: {task} only has {rows} rows")
+            combine_task_results.append(task_df)
+        if len(combine_task_results) > 0:
+            combine_task_results = pd.concat(combine_task_results, axis=0)
+            combine_task_results.to_csv(f"{results_tables_dir}/{experiment_name}_mlflow.csv", index=False) 
+        if len(combine_task_results) < num_tasks:
+            logger.info(f"TO BE RE-RUN: {experiment_name}. \nHas {len(combine_task_results)} tasks only")
+            experiments_to_be_run_again.append(experiment_name)
+        
+    with open(f"{results_tables_dir}/need_to_be_re_run{task_type}.txt", 'w') as f:
+        for line in experiments_to_be_run_again:
+            f.write(f"{line}\n")
+
+        
+
+
+def extract_parameters(
+                    save_folder,
+                    experiment_data_path,
+                    logger,
+                    storage_uris,
+                    task_type,
+                    exp_filter,
+                    all_settings,
+                    ):
+    """
+    extracts hyper-parameter information for each experiment from the mlflow logs
+    saves this information to the csv file: f"{save_folder}/{task_type}_parameters.csv"
+
+    Args:
+        save_folder: folder where results will be saved
+        experiment_data_path: path to csv file containing the following information about the experiments
+                                columns: experiment_name, backbone, early_stop_patience, n_trials, data_percentages, decoder)
+        logger: logging object
+        storage_uris: folder containing MLFlow logs for the given experiments
+        task_type: segmentation/classification
+        filter: filter to select which experiments in the csv file should be considered
+    """
+
+    logger.info(f"\nSTARTING TO CHECK PARAMS for {task_type}")  
+
+    #get list of experiments
+    experiment_data = pd.read_csv(experiment_data_path)
+    list_of_experiments = experiment_data["experiment_name"].tolist()
+    list_of_experiments = [item.split("experiment_name: ")[-1] for item in list_of_experiments]
+    list_of_experiments = list(set(list_of_experiments))
+
+    save_folder = f"{save_folder}/tables"
+    if not os.path.exists(save_folder):
+        os.makedirs(save_folder)     
+
+    list_of_experiments = [item for item in list_of_experiments if exp_filter in item]
+    logger.info(f"list_of_experiments: {len(list_of_experiments)}") 
+    
+    list_of_all_params = []
+    for storage_uri in storage_uris:
+        client = mlflow.tracking.MlflowClient(tracking_uri=storage_uri)
+        for experiment_name in list_of_experiments:
+            #get backbone name
+            exp_info = experiment_data.loc[experiment_data["experiment_name"] == f"experiment_name: {experiment_name}"]
+            backbone = exp_info["backbones"].tolist()[0]
+
+            #colect all relevant settings from csv file
+            decoder = exp_info["decoders"].tolist()[0]
+            early_stop_patience = exp_info["early_stop_patience"].tolist()[0]
+            n_trials = exp_info["n_trials"].tolist()[0]
+            data_percentages = exp_info["data_percentages"].tolist()[0]
+            exp_parent_run_name = f"{backbone}_geobench_v2"
+
+            #get experiment id
+            experiment_info = client.get_experiment_by_name(experiment_name)
+            if experiment_info is None:
+                continue
+            #logger.info(f"\n\nexperiment_id: {experiment_info.experiment_id}")
+            logger.info(f"\nexperiment_name: {experiment_name} ")  
+            logger.info(f"backbone: {backbone} decoder: {decoder} early_stop_patience:\
+                         {early_stop_patience} n_trials: {n_trials} data_percentages: {data_percentages}")  
+            experiment_id = experiment_info.experiment_id
+
+            experiment_parent_run_data = client.search_runs(experiment_ids=[experiment_id], 
+                                filter_string=f'tags."mlflow.runName" LIKE "{exp_parent_run_name}"')
+            logger.info(f"experiment_parent_run_data: {len(experiment_parent_run_data)}")  
+
+            for run in experiment_parent_run_data:
+                exp_parent_run_id = run.info.run_id
+
+            mlflow.set_tracking_uri(storage_uri)
+            mlflow.set_experiment(experiment_name)
+
+            runs: list[mlflow.entities.Run] = mlflow.search_runs(
+                filter_string=f"tags.mlflow.parentRunId='{exp_parent_run_id}'", output_format="list"
+            )  # type: ignore
+            logger.info(f"Found runs: {[run.info.run_name for run in runs]}")
+
+            if task_type == "segmentation":
+                tasks = SEGMENTATION_BASE_TASKS
+            elif task_type == "classification":
+                tasks = CLASSIFICATION_BASE_TASKS
+
+            for task in tasks:
+                logger.info(f"task: {task}")  
+                matching_runs = [run for run in runs if run.info.run_name.endswith(task)]  # type: ignore
+                best_params = matching_runs[0].data.params
+                # eval them
+                best_params = {k: literal_eval(v) for k, v in best_params.items()}
+                best_params["experiment_name"] = experiment_name
+                best_params["task"] = task
+                best_params["backbone"] = backbone
+                best_params["decoder"] = decoder
+                best_params["early_stop_patience"] = early_stop_patience
+                best_params["n_trials"] = n_trials
+                best_params["data_percentages"] = data_percentages
+                logger.info(f"best_params: {best_params}")  
+                if 'optimizer_hparams' in best_params:
+                    logger.info(f"optimizer_hparams: {best_params['optimizer_hparams'].items()}")  
+                    
+                    optimizer_hparams = {k: v for k,v in best_params['optimizer_hparams'].items()}
+                    best_params.update(optimizer_hparams) 
+                    del best_params['optimizer_hparams']
+                best_params = pd.DataFrame(best_params, index=[0])
+                list_of_all_params.append(best_params)
+    list_of_all_params = pd.concat(list_of_all_params, axis=0)
+    list_of_all_params = list_of_all_params.reset_index()
+
+    for setting in all_settings:
+        exp_for_setting = [exp for exp in list_of_experiments if setting in exp]
+        params_for_setting = list_of_all_params.loc[list_of_all_params["experiment_name"].isin(exp_for_setting)].copy()
+        params_for_setting.to_csv(f"{save_folder}/{task_type}_{setting}_parameters.csv", index=False) 
+
 
 
 def delete_nested_experiment_parent_runs(
@@ -228,6 +464,113 @@ def check_existing_experiments(logger,
 
 
 
+def compile_and_visualize(
+                            completed_experiments,
+                            save_folder,
+                            logger,
+                            plot_file_base_name,
+                            task_type = "segmentation",
+                            partition_name = "0.10xtrain",
+                            repeated_experiment_folder = "results/repeated_exp_output"
+                            ):
+
+    if not os.path.exists(f"{save_folder}/tables/"):
+        os.makedirs(f"{save_folder}/tables/")
+    if not os.path.exists(f"{save_folder}/plots/"):
+        os.makedirs(f"{save_folder}/plots/")
+    if not os.path.exists(f"{save_folder}/tracking/"):
+        os.makedirs(f"{save_folder}/tracking/")
+
+    logger.info(f"\nSTARTING TO COMPILE AND VISUALIZE")  
+
+    combined_results = []
+    model_order = []
+    mean_value = []
+    experiment_names = []
+    for experiment_name in completed_experiments:
+        logger.info(f"experiment_name: {experiment_name}")  
+        repeated_results_files = f"{repeated_experiment_folder}/{experiment_name}_*"
+        repeated_results_files = glob.glob(repeated_results_files)
+        logger.info(repeated_results_files)
+        if len(set(repeated_results_files)) > 1:
+            logger.info(f"too many files for repeated experiments: {experiment_name}")
+            logger.info(len(set(repeated_results_files)))
+            logger.info(repeated_results_files)
+            continue
+            #raise RuntimeError
+        elif len(set(repeated_results_files)) == 0:
+            continue
+        repeated_results_files = sorted(repeated_results_files)[-1]
+        repeated_experiment_results = pd.read_csv(repeated_results_files)
+        if "Unnamed: 0" in list(repeated_experiment_results.columns):
+            repeated_experiment_results.drop(["Unnamed: 0"], axis=1, inplace=True)
+        logger.info(f"repeated_experiment_results: {repeated_experiment_results.shape}")
+        if (0.0 in list(repeated_experiment_results["Score"])) or (sum(np.isnan(repeated_experiment_results["Score"])) > 0):
+            logger.info(f"Has a zero, REDO: {experiment_name}")
+            logger.info(repeated_results_files)
+            continue
+            #raise RuntimeError
+
+        repeated_experiment_results["Backbone"] = experiment_name
+        combined_results.append(repeated_experiment_results)
+        model_order.append(experiment_name)
+
+    num_experiments = len(combined_results)
+    fig_size = (num_experiments*5, 6) if num_experiments>=3 else (15,6)
+    n_legend_rows = num_experiments//3 if num_experiments>=3 else 1
+    logger.info(f"number of experiments to compare: {len(combined_results)}")
+
+    if len(combined_results) == 0:
+        return None
+    combined_results = pd.concat(combined_results, ignore_index=True)
+    combined_results = combined_results.rename(columns={"Task": "dataset", "Backbone": "model", "Score": "test metric"})
+    combined_results.to_csv(f"{save_folder}/tables/{plot_file_base_name}_combined_results.csv")
+    logger.info(f"combined_results :{combined_results.shape}")
+
+    model_colors = dict( zip(model_order, sns.color_palette("tab20", n_colors=len(model_order))))
+    combined_results = pd.read_csv(f"{save_folder}/tables/{plot_file_base_name}_combined_results.csv", index_col="Unnamed: 0")
+    combined_results["partition name"] = partition_name 
+    model_order = sorted(model_order)
+    logger.info(f"model_order: {model_order}")
+    logger.info(f"model_colors: {model_colors}")
+
+    try: 
+        #plot raw values
+        plot_tools.box_plot_per_dataset(combined_results, 
+                                    model_order=model_order, 
+                                    plot_file_base_name=plot_file_base_name,
+                                    model_colors=model_colors, 
+                                    metric="test metric", 
+                                    sharey=False, 
+                                    inner="points", 
+                                    fig_size=fig_size, 
+                                    n_legend_rows=n_legend_rows)
+        plt.savefig(f"{save_folder}/plots/box_{plot_file_base_name}_raw.png", bbox_inches="tight")
+        plt.close()
+
+        #plot normalized, bootstrapped values values
+        normalizer = plot_tools.make_normalizer(combined_results, 
+                                                metrics=("test metric",), 
+                                                benchmark_name=plot_file_base_name)
+        bootstrapped_iqm, normalized_combined_results = plot_tools.normalize_bootstrap_and_plot(combined_results, 
+                                                                plot_file_base_name=plot_file_base_name,
+                                                                metric="test metric",
+                                                                benchmark_name=plot_file_base_name, 
+                                                                model_order=model_order, 
+                                                                model_colors=model_colors, 
+                                                                fig_size=fig_size,
+                                                                n_legend_rows=n_legend_rows)
+                                                                #dataset_name_map=dataset_name_map)
+        
+        plt.savefig(f"{save_folder}/plots/box_{plot_file_base_name}_normalized_bootstrapped.png", bbox_inches="tight")
+        plt.close()
+        bootstrapped_iqm.to_csv(f"{save_folder}/tables/{plot_file_base_name}_bootstrapped_iqm.csv")
+        combined_results.to_csv(f"{save_folder}/tables/{plot_file_base_name}_normalized_combined_results.csv")
+    except Exception as e:
+        logger.info(f"could not visualize due to error: {e}")
+    return model_order
+
+
 
 
 def get_logger(log_level="INFO",
@@ -241,10 +584,79 @@ def get_logger(log_level="INFO",
     logger = logging.getLogger()
     logger.setLevel(log_level)
     handler = logging.FileHandler(log_file)
-    #handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(log_level)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     logging.basicConfig(level=logging.CRITICAL)
     return logger
+
+
+
+if __name__ == "__main__":
+    logger = get_logger()
+    save_folder = "leaderboard_ready_results"
+    experiment_data_path = "segmentation_experiment_info_new.csv"
+    task_type = "segmentation"
+    results_root_folder = "results"
+    hpo_experiment_storage_uri = f"{results_root_folder}/{task_type}/hpo_results"
+    repeated_experiment_folder =  f"{results_root_folder}/{task_type}/repeated_exp_output"
+    
+    if not os.path.exists(save_folder):
+        os.makedirs(save_folder)
+
+    #get hyperparameters from mlflow logs
+    logger.info(f"Now compiling results for: {task_type}")
+    extract_parameters(
+                save_folder = save_folder,
+                experiment_data_path= experiment_data_path,
+                logger =logger,
+                storage_uris = [hpo_storage_uri],
+                task_type = task_type,
+                all_settings = [
+                                "early_stopping_10_data_100_perc", 
+                                "early_stopping_50_data_10_perc", 
+                                "early_stopping_50_data_100_perc",
+                                ]
+                )
+
+    #extract repeated experiment results from mlflow logs
+    extract_repeated_experiment_results(
+        storage_uri = hpo_storage_uri,
+        logger = logger,
+        task_type = task_type,
+        experiment_data_path= experiment_data_path,
+        num_repetitions = 10,
+        num_tasks = 6
+        )
+
+    experiment_data = pd.read_csv(experiment_data_path)
+    experiment_names = experiment_data["experiment_name"].tolist()
+    experiment_names = [item.replace("experiment_name: ", "") for item in experiment_names]
+    experiment_names = list(set(experiment_names))
+
+
+    SETTINGS_PER_MODEL= ["early_stopping_10_data_100_perc", 
+                    "early_stopping_50_data_10_perc", 
+                    "early_stopping_50_data_100_perc"]
+    
+    #create box plots across multiple models
+    for setting in SETTINGS_PER_MODEL:
+        #only compare across best decoder for each model for completed experiments
+        if task_type == "segmentation":
+            comparison_1 = "upernetdecoder" 
+            comparison_2 = "unet" 
+        elif task_type ==  "classification":
+            comparison_1 = "_" 
+            comparison_2 = "_" 
+        exp_for_setting = [exp for exp in experiment_names if setting in exp]
+        best_exp_for_setting = [exp for exp in exp_for_setting if ((comparison_1 in exp) or (comparison_2 in exp))]
+        model_order = compile_and_visualize(
+                            best_exp_for_setting,
+                            save_folder,
+                            logger,
+                            plot_file_base_name = f"multiple_models_{setting}_{comparison_1}_{comparison_2}",
+                            task_type = task_type,
+                            partition_name = "1.00xtrain",
+                            repeated_experiment_folder = repeated_experiment_folder
+                            )
