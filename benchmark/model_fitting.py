@@ -14,7 +14,7 @@ import warnings
 from abc import abstractmethod
 from functools import wraps
 from typing import Any, Callable
-
+import pandas as pd
 import lightning.pytorch as pl
 import mlflow
 import optuna
@@ -281,18 +281,46 @@ def launch_training(
             tracking_uri=storage_uri,
         )
 
-        metric_history = client.get_metric_history(run.info.run_id, metric)
-        if len(metric_history) == 0:
+        if not metric.startswith("val/"):
             raise Exception(
-                f"No values for metric {metric}. Choose a valid metric for this task"
+                f"Metric {metric} does not start with `val/`. Please choose a validation metric"
             )
-        metric_values = [m.value for m in metric_history]
+        for_pd_collect = []
+        val_metrics_names = []
+        for metric_name in client.get_run(run.info.run_id).data.metrics:
+            if metric_name.startswith("val/"):
+                val_metrics_names.append(metric_name)
+                val_metric_history = client.get_metric_history(
+                    run.info.run_id, metric_name
+                )
+                pd_convertible_metric_history = [
+                    {
+                        "metric_name": mm.key,
+                        "step": mm.step,
+                        "value": mm.value,
+                    }
+                    for mm in val_metric_history
+                ]
+                for_pd_collect += pd_convertible_metric_history
+        df_val_metrics = pd.DataFrame.from_records(for_pd_collect)
+        df_val_metrics = df_val_metrics.set_index(
+            ["metric_name", "step"], verify_integrity=True
+        )
+        series_val_metrics = df_val_metrics["value"]
         if direction == "max":
-            return max(metric_values)
+            best_step = series_val_metrics[metric].idxmax()
         elif direction == "min":
-            return min(metric_values)
+            best_step = series_val_metrics[metric].idxmin()
         else:
             raise Exception(f"Direction must be `max` or `min` but got {direction}")
+
+        for val_metric_name in val_metrics_names:
+            mlflow.log_metric(
+                f"best_step_{val_metric_name}",
+                series_val_metrics[(val_metric_name, best_step)],
+            )
+
+        return series_val_metrics[(metric, best_step)]
 
 
 def fit_model(
