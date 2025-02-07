@@ -23,14 +23,33 @@ click = "*"
 # optional dependencies that can be opted in by apps.
 pytest = { version = "*", optional = true }
 pytest-cov = { version = "*", optional = true }
-torch = ">=2.2.0"
+torch = ">=2.2.2"
 torchvision = ">=0.17.0"
 # terratorch = {git = "git@github.ibm.com:GeoFM-Finetuning/terratorch.git"}
 # terratorch = {git = "git@github.ibm.com:GeoFM-Finetuning/terratorch.git", branch="feature/multimae"}
 # terratorch = {git = "https://github.com/IBM/terratorch.git", branch="feature/geobench_partitions"}
 terratorch = {git = "https://github.com/IBM/terratorch.git", branch="feature/scale_mae_simplify"}
 # terratorch = {git = "https://github.com/IBM/terratorch.git"}
-
+# requests>=2.32.0 because of this vulnerability https://github.com/psf/requests/security/advisories/GHSA-9wx4-h78v-vm56
+requests = ">=2.32.0"
+# Jinja2 vulnerability issue https://github.com/pallets/jinja/security/advisories/GHSA-h75v-3vvj-5mfj
+Jinja2 = ">=3.1.4"
+# urllib3 vulnerability issue https://github.com/urllib3/urllib3/security/advisories/GHSA-34jh-p97f-mpxf
+urllib3 = ">=2.2.2"
+# https://github.ibm.com/GeoFM-Finetuning/benchmark/issues/11
+sqlparse = ">=0.5.0"
+# https://github.ibm.com/GeoFM-Finetuning/benchmark/issues/12
+scikit-learn = ">=1.5.0"
+# https://github.ibm.com/GeoFM-Finetuning/benchmark/issues/16
+pillow = ">=10.3.0"
+# https://github.ibm.com/GeoFM-Finetuning/benchmark/issues/15
+aiohttp = ">=3.9.4"
+# https://github.ibm.com/GeoFM-Finetuning/benchmark/issues/17
+tqdm = ">=4.66.3"
+# https://github.ibm.com/GeoFM-Finetuning/benchmark/issues/7
+werkzeug = ">=3.0.3"
+# https://github.ibm.com/GeoFM-Finetuning/benchmark/issues/10
+pytorch-lightning = ">=2.3.3"
 # temporal lat lon encoding
 # terratorch = {path = "/u/carlosgomes/terratorch_os/terratorch"}
 more-itertools = "^10.2.0"
