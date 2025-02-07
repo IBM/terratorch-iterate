@@ -62,10 +62,6 @@ You can see examples of this in the `vit_encoder_decoder.py` or `swin_encoder_de
 
 Once this is done, you just need to point the benchmarking tool to the module that registers your new backbones with the key `backbone_registration`. You can now use your backbone as any of the backbones in TerraTorch.
 
-### Example
-
-You can see an example of this for the Swin3D model in the `swin3d` directory. Specifically files `prithvi_swin3d.py` for registering with timm and `swin3d.py` for adding `feature_info`.
-
 ## 3. Using a different model factory
 
 A third alternative is to use a different model factory altogether, specifying how to build the end to end model yourself.
