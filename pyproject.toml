@@ -23,12 +23,12 @@ click = "*"
 # optional dependencies that can be opted in by apps.
 pytest = { version = "*", optional = true }
 pytest-cov = { version = "*", optional = true }
-torch = ">=2.2.2"
+torch = "==2.6.0"
 torchvision = ">=0.17.0"
 # terratorch = {git = "git@github.ibm.com:GeoFM-Finetuning/terratorch.git"}
 # terratorch = {git = "git@github.ibm.com:GeoFM-Finetuning/terratorch.git", branch="feature/multimae"}
 # terratorch = {git = "https://github.com/IBM/terratorch.git", branch="feature/geobench_partitions"}
-terratorch = {git = "https://github.com/IBM/terratorch.git", branch="feature/scale_mae_simplify"}
+terratorch = ">=0.99.8" 
 # terratorch = {git = "https://github.com/IBM/terratorch.git"}
 # requests>=2.32.0 because of this vulnerability https://github.com/psf/requests/security/advisories/GHSA-9wx4-h78v-vm56
 requests = ">=2.32.0"
