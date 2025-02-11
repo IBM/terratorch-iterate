@@ -3,7 +3,7 @@ run_name: test_models_saved_multiple_epochs_no_ray
 defaults:
   trainer_args:
     precision: bf16-mixed # for these new models pretrained with bf16-mixed we should probably finetune with bf16-mixed
-    max_epochs: 300
+    max_epochs: 10
   terratorch_task:
     model_args:
       pretrained: True
@@ -23,7 +23,7 @@ tasks:
     type: segmentation
     direction: max
     metric: val/Multiclass_Jaccard_Index
-    early_stop_patience: 50
+    early_stop_patience: 10
     terratorch_task:
       loss: ce
       model_args:
