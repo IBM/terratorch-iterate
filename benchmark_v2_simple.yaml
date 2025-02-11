@@ -85,9 +85,10 @@ ray_storage_path: /dccstor/geofm-finetuning/carlosgomes/ray_storage
 optimization_space:
   batch_size:
       - 8
+      - 32
   lr:
     max: 1e-3
-    min: 1e-3
+    min: 1e-6
     type: real
     log: true
   optimizer_hparams:
@@ -98,3 +99,4 @@ optimization_space:
   model_args:
     decoder_channels:
       - 64
+      - 128
