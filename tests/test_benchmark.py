@@ -46,7 +46,7 @@ def mchesapeakelandcovernongeodatamodule() -> MChesapeakeLandcoverNonGeoDataModu
         train_transform=train_transform,
         test_transform=test_transform,
         data_root="/dccstor/geofm-finetuning/datasets/geobench/segmentation_v1.0",
-        bands=["RED", "GREEN", "BLUE", "NIR_NARROW"],
+        bands=["RED", "GREEN", "BLUE", "NIR"],
     )
 
 
@@ -65,7 +65,7 @@ def tasks(mchesapeakelandcovernongeodatamodule):
                 "decoder": "UperNetDecoder",
                 "decoder_channels": 128,
                 "decoder_scale_modules": True,
-                "bands": ["RED", "GREEN", "BLUE", "NIR_NARROW"],
+                "bands": ["RED", "GREEN", "BLUE", "NIR"],
                 "num_classes": 7,
             },
         },

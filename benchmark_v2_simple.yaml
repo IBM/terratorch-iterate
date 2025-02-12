@@ -34,7 +34,7 @@ tasks:
         - RED
         - GREEN
         - BLUE
-        - NIR_NARROW
+        - NIR
         num_classes: 7
     datamodule:
       class_path: terratorch.datamodules.MChesapeakeLandcoverNonGeoDataModule
