@@ -30,7 +30,7 @@ def defaults():
     return Defaults(trainer_args=trainer_args, terratorch_task=terratorch_task)
 
 
-@pytest.fixture(scope="main")
+@pytest.fixture(scope="module")
 def mchesapeakelandcovernongeodatamodule():
     train_transform = [Resize(height=224, width=224), ToTensorV2()]
     test_transform = [
