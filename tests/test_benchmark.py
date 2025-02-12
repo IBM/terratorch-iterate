@@ -7,10 +7,10 @@ from albumentations import HorizontalFlip, VerticalFlip, Resize
 from albumentations.pytorch.transforms import ToTensorV2
 import uuid
 import os
-import time
+
 
 @pytest.fixture(scope="module")
-def defaults():
+def defaults() -> Defaults:
     trainer_args = {
         "precision": "bf16-mixed",
         "max_epochs": 10,
@@ -31,7 +31,7 @@ def defaults():
 
 
 @pytest.fixture(scope="module")
-def mchesapeakelandcovernongeodatamodule():
+def mchesapeakelandcovernongeodatamodule() -> MChesapeakeLandcoverNonGeoDataModule:
     train_transform = [Resize(height=224, width=224), ToTensorV2()]
     test_transform = [
         HorizontalFlip(p=0.5),
@@ -51,7 +51,7 @@ def mchesapeakelandcovernongeodatamodule():
 
 
 @pytest.fixture(scope="module")
-def tasks(chesa_peake_data_module: mchesapeakelandcovernongeodatamodule):
+def tasks(mchesapeakelandcovernongeodatamodule):
 
     t = Task(
         name="chesapeake",
@@ -69,11 +69,9 @@ def tasks(chesa_peake_data_module: mchesapeakelandcovernongeodatamodule):
                 "num_classes": 7,
             },
         },
-        datamodule=chesa_peake_data_module,
+        datamodule=mchesapeakelandcovernongeodatamodule,
     )
     return [t]
-
-
 
 
 def get_most_recent_modified_dir(path):
@@ -82,21 +80,27 @@ def get_most_recent_modified_dir(path):
     """
     if not os.path.exists(path):
         raise ValueError(f"Path '{path}' does not exist.")
-    
-    if not os.path.isdir(path):
-         raise ValueError(f"Path '{path}' is not a directory.")
 
-    sub_dirs = [os.path.join(path, d) for d in os.listdir(path) if os.path.isdir(os.path.join(path,d))]
+    if not os.path.isdir(path):
+        raise ValueError(f"Path '{path}' is not a directory.")
+
+    sub_dirs = [
+        os.path.join(path, d)
+        for d in os.listdir(path)
+        if os.path.isdir(os.path.join(path, d))
+    ]
     if not sub_dirs:
         return None
-    
+
     return max(sub_dirs, key=os.path.getmtime)
+
 
 def find_file(directory: str, filename: str):
     for root, _, files in os.walk(directory):
         if filename in files:
             return os.path.join(root, filename)
     return None
+
 
 def test_run_benchmark(defaults: Defaults, tasks: List[Task]):
     storage_uri = "/dccstor/geofm-finetuning/carlosgomes/benchmark"
@@ -129,4 +133,6 @@ def test_run_benchmark(defaults: Defaults, tasks: List[Task]):
     # open file and check that the experiment name is the same
     with open(mlflow_run_name, mode="r") as f:
         line = f.read()
-        assert experiment_name in line, f"Error! {experiment_name=} is not in file {mlflow_path}"
+        assert (
+            experiment_name in line
+        ), f"Error! {experiment_name=} is not in file {mlflow_path}"
