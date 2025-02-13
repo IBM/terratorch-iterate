@@ -2,6 +2,9 @@
 This module contains functions to re-run a best backbone with different seeds
 """
 
+import copy
+import importlib
+import os
 import warnings
 from ast import literal_eval
 from random import randint
@@ -14,18 +17,19 @@ import ray
 import torch
 from jsonargparse import CLI
 from lightning import Callback, Trainer
-from lightning.fabric.plugins.precision.precision import _PRECISION_INPUT
 from lightning.pytorch import seed_everything
-from lightning.pytorch.callbacks import EarlyStopping
+from lightning.pytorch.callbacks import ModelCheckpoint
 from tabulate import tabulate
+from terratorch.tasks import PixelwiseRegressionTask, SemanticSegmentationTask
 
 from benchmark.benchmark_types import (
-    Backbone,
+    Defaults,
     Task,
-    build_model_args,
-    optimization_space_type,
+    TrainingSpec,
+    combine_with_defaults,
 )
 from benchmark.model_fitting import (
+    get_default_callbacks,
     inject_hparams,
     valid_task_types,
 )
@@ -33,65 +37,44 @@ from benchmark.model_fitting import (
 
 @ray.remote(num_cpus=8, num_gpus=1)
 def remote_fit(
-    backbone: Backbone,
-    model_args: dict,
-    task: Task,
+    training_spec: TrainingSpec,
     lightning_task_class: valid_task_types,
+    best_params: dict,
     seed: int,
-    precision: _PRECISION_INPUT = "32",
+    backbone_import: str | None = None
 ) -> float | None:
     seed_everything(seed, workers=True)
+    if backbone_import:
+        importlib.import_module(backbone_import)
 
-    lr = float(model_args.pop("lr", task.lr))
-    batch_size = model_args.pop("batch_size", None)
-    if batch_size is not None:
-        batch_size = int(batch_size)
-    freeze_backbone = bool(model_args.pop("freeze_backbone", False))
+    training_spec_copy = copy.deepcopy(training_spec)
+    training_spec_with_generated_hparams = inject_hparams(training_spec_copy, best_params)
+    task = training_spec_with_generated_hparams.task
 
-    if batch_size:
-        task.datamodule.batch_size = batch_size
-    if lr is None:
-        lr = task.lr
-    weight_decay = model_args.pop("weight_decay", 0.05)
+    if lightning_task_class in [
+        SemanticSegmentationTask,
+        PixelwiseRegressionTask,
+    ]:
+        task.terratorch_task["plot_on_val"] = False
+    lightning_task = lightning_task_class(**task.terratorch_task)
 
-    params: dict[str, Any] = dict(
-        model_args=model_args,
-        model_factory=task.model_factory,
-        loss=task.loss,
-        lr=lr,
-        optimizer="AdamW",
-        optimizer_hparams={"weight_decay": weight_decay},
-        freeze_backbone=freeze_backbone,
-        ignore_index=task.ignore_index,
-    )
-
-    if task.reduce_lr_on_plateau:
-        params["scheduler"] = "ReduceLROnPlateau"
-        if isinstance(task.reduce_lr_on_plateau, int):
-            params["scheduler_hparams"] = {"patience": task.reduce_lr_on_plateau}
-    
-    lightning_task = lightning_task_class(**params)
-    
-    callbacks: list[Callback] = []
-
-    if task.early_stop_patience is not None:
-        callbacks.append(
-            EarlyStopping(
-                "val/loss", mode=task.direction, patience=task.early_stop_patience
-            )
+    if len(training_spec.trainer_args.get("callbacks", [])) > 0:
+        warnings.warn(
+            "Callbacks passed to trainer. Make sure these are stateless, as they will not be reinitialized for each task!"
         )
-        # callbacks.append(EarlyStopping("val/loss", patience=task.early_stop_patience))
 
-    trainer = Trainer(
-        callbacks=callbacks,
-        logger=False,
-        max_epochs=task.max_epochs,
-        # max_epochs=1,
-        enable_checkpointing=False,
-        enable_progress_bar=False,
-        log_every_n_steps=10,
-        precision=precision,
-    )
+    default_callbacks: list[Callback] = get_default_callbacks(task.early_stop_patience, task.max_run_duration)
+    # get callbacks (set to empty list if none defined) and extend with default ones
+    training_spec_with_generated_hparams.trainer_args.setdefault("callbacks", []).extend(
+        default_callbacks
+    )  # type: ignore
+    if "enable_checkpointing" in training_spec_with_generated_hparams.trainer_args:
+        warnings.warn("enable_checkpointing found. Will be overwritten to False as ray will be responsible for saving models.")
+    training_spec_with_generated_hparams.trainer_args["enable_checkpointing"] = False
+    if "enable_progress_bar" in training_spec_with_generated_hparams.trainer_args:
+        warnings.warn("enable_progress_bar found. Will be overwritten to False")
+    training_spec_with_generated_hparams.trainer_args["enable_progress_bar"] = False
+    trainer = Trainer(**training_spec_with_generated_hparams.trainer_args)
     try:
         trainer.fit(lightning_task, datamodule=task.datamodule)
         metrics = trainer.test(
@@ -108,20 +91,40 @@ def remote_fit(
 def rerun_best_from_backbone(
     parent_run_id: str,
     output_path: str,
-    backbone: Backbone,
+    defaults: Defaults,
     tasks: list[Task],
-    storage_uri: str,
     experiment_name: str,
+    storage_uri: str,
     *args,
-    benchmark_suffix: str | None = None,
+    tmp_dir: str | None = None,
+    run_repetitions: int = 10,
+    backbone_import: str | None = None,
+    run_name: str | None = None,
     n_trials: int = 1,
     ray_storage_path: str | None = None,
-    optimization_space: optimization_space_type | None = None,
     save_models: bool = False,
-    precision: _PRECISION_INPUT = "32",
+    run_id: str | None = None,
+    optimization_space: dict | None = None,
+    description: str | None = None,
     **kwargs,
 ):
-    ray.init()
+    """Repeat best experiments from a benchmark run. Only works with a ray cluster.
+
+    Args:
+        parent_run_id (str): mlflow id of parent run
+        output_path (str): path to store the results of the run
+        tmp_dir (str): Path to temporary directory to be used for ray
+        run_repetitions (int): How many runs (each with a different seed) to run per task.
+
+    """
+    if not os.path.isabs(output_path):
+        raise Exception(f"output_path must be absolute. Consider using $(pwd)/{output_path}.")
+    if tmp_dir is None:
+        raise Exception("tmp_dir must be specified for runs with ray.")
+    os.environ["RAY_TMPDIR"] = tmp_dir
+    ray.init(_temp_dir=tmp_dir)
+    if backbone_import:
+        importlib.import_module(backbone_import)
     mlflow.set_tracking_uri(storage_uri)
     mlflow.set_experiment(experiment_name)
 
@@ -129,14 +132,12 @@ def rerun_best_from_backbone(
         filter_string=f"tags.mlflow.parentRunId='{parent_run_id}'", output_format="list"
     )  # type: ignore
     print(f"Found runs: {[run.info.run_name for run in runs]}")
-    print(
-        f"Will match with task names: {['_'.join(run.info.run_name.split('_')[1:]) for run in runs]}"
-    )
-    table_columns = ["Task", "Metric", "Score"]
+
+    table_columns = ["Task", "Metric", "Score", "MLFlow run id"]
     table_entries = []
 
     ray_tasks = []
-    seeds = [42] + [randint(1, 5000) for i in range(9)]
+    seeds = [randint(1, 5000) for i in range(run_repetitions)]
     for task in tasks:
         matching_runs = [run for run in runs if run.info.run_name.endswith(task.name)]  # type: ignore
         if len(matching_runs) == 0:
@@ -150,28 +151,16 @@ def rerun_best_from_backbone(
         best_params = matching_runs[0].data.params
         # eval them
         best_params = {k: literal_eval(v) for k, v in best_params.items()}
-        lightning_task_class = task.type.get_class_from_enum()
-        # print(f"Task {task.name}")
-        # print("Best params:")
-        # print(best_params)
-        # print("============")
-        model_args = build_model_args(backbone, task)
-        # print("Built model args:")
-        # print(model_args)
-        # print("============")
-        model_args = inject_hparams(model_args, best_params)
-        # print("Final model args")
-        # print(model_args)
-        # print("-------------")
+        training_spec = combine_with_defaults(task, defaults)
+        lightning_task_class = training_spec.task.type.get_class_from_enum()
         for seed in seeds:
             ray_tasks.append(
                 remote_fit.remote(
-                    backbone,
-                    model_args,
-                    task,
+                    training_spec,
                     lightning_task_class,
+                    best_params,
                     seed,
-                    precision=precision,
+                    backbone_import=backbone_import
                 )
             )
     results = ray.get(ray_tasks)
@@ -180,6 +169,7 @@ def rerun_best_from_backbone(
             task.name,
             task.metric.split("/")[-1],
             result,
+            matching_runs[0].info.run_id
         ]
         for task, result in zip(
             [task for task in tasks for _ in seeds], results
@@ -189,7 +179,7 @@ def rerun_best_from_backbone(
     table = tabulate(table_entries, headers=table_columns)
     print(table)
     df = pd.DataFrame(data=table_entries, columns=table_columns)
-    df.to_csv(output_path)
+    df.to_csv(output_path, index=False)
     ray.shutdown()
 
 
