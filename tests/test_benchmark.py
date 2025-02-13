@@ -103,7 +103,7 @@ def find_file(directory: str, filename: str):
 
 
 def test_run_benchmark(defaults: Defaults, tasks: List[Task]):
-    storage_uri = "/dccstor/geofm-finetuning/carlosgomes/benchmark"
+    storage_uri = "/dccstor/geofm-finetuning/terratorch-iterate-test"
     ray_storage_path = "/dccstor/geofm-finetuning/carlosgomes/ray_storage"
     optimization_space = {
         "batch_size": [8, 32, 64],
@@ -134,5 +134,6 @@ def test_run_benchmark(defaults: Defaults, tasks: List[Task]):
     with open(mlflow_path, mode="r") as f:
         line = f.read()
         assert (
-            experiment_name in line
-        ), f"Error! {experiment_name=} is not in file {mlflow_path}"
+            run_name in line
+        ), f"Error! {run_name=} is not part of {line=} from file={mlflow_path}"
+    # TODO delete the directories that were created by this test case

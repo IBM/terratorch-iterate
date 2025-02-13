@@ -13,7 +13,6 @@ from jsonargparse import CLI
 from optuna.pruners import HyperbandPruner
 from optuna.samplers import BaseSampler, RandomSampler
 from tabulate import tabulate
-from jsonargparse import ArgumentParser
 
 from benchmark.benchmark_types import (
     Defaults,
@@ -23,7 +22,6 @@ from benchmark.benchmark_types import (
     optimization_space_type,
 )
 from benchmark.model_fitting import fit_model, fit_model_with_hparams
-from jsonargparse.typing import Path_fr
 
 direction_type_to_optuna = {"min": "minimize", "max": "maximize"}
 
