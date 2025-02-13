@@ -131,7 +131,7 @@ def test_run_benchmark(defaults: Defaults, tasks: List[Task]):
     mlflow_run_name = "mlflow.runName"
     mlflow_path = find_file(directory=dir_path, filename=mlflow_run_name)
     # open file and check that the experiment name is the same
-    with open(mlflow_run_name, mode="r") as f:
+    with open(mlflow_path, mode="r") as f:
         line = f.read()
         assert (
             experiment_name in line
