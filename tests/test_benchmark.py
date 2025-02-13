@@ -1,5 +1,5 @@
 from typing import List
-from benchmark.benchmark_types import Defaults, Task
+from benchmark.benchmark_types import Defaults, Task, TaskTypeEnum
 import pytest
 from benchmark.backbone_benchmark import benchmark_backbone
 from terratorch.datamodules import MChesapeakeLandcoverNonGeoDataModule
@@ -55,7 +55,7 @@ def tasks(mchesapeakelandcovernongeodatamodule):
 
     t = Task(
         name="chesapeake",
-        type="segmentation",
+        type=TaskTypeEnum.segmentation,
         direction="max",
         metric="val/Multiclass_Jaccard_Index",
         early_stop_patience=10,
