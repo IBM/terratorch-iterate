@@ -88,27 +88,6 @@ def tasks(mchesapeakelandcovernongeodatamodule):
     return [t]
 
 
-def get_most_recent_modified_dir(path):
-    """
-    Returns the most recently modified directory within the given path.
-    """
-    if not os.path.exists(path):
-        raise ValueError(f"Path '{path}' does not exist.")
-
-    if not os.path.isdir(path):
-        raise ValueError(f"Path '{path}' is not a directory.")
-
-    sub_dirs = [
-        os.path.join(path, d)
-        for d in os.listdir(path)
-        if os.path.isdir(os.path.join(path, d))
-    ]
-    if not sub_dirs:
-        return None
-
-    return max(sub_dirs, key=os.path.getmtime)
-
-
 def find_file(directory: str, filename: str):
     for root, _, files in os.walk(directory):
         if filename in files:
@@ -130,10 +109,10 @@ def test_run_benchmark(defaults: Defaults, tasks: List[Task]):
     experiment_name = f"test_chesapeake_segmentation_{run_id}"
     run_name = f"run_name_geobench_{run_id}"
 
-    benchmark_backbone(
+    mlflow_run_id = benchmark_backbone(
         experiment_name=experiment_name,
         run_name=run_name,
-        run_id=run_id,
+        run_id=None,
         defaults=defaults,
         tasks=tasks,
         n_trials=2,
@@ -143,10 +122,11 @@ def test_run_benchmark(defaults: Defaults, tasks: List[Task]):
         optimization_space=optimization_space,
     )
     # get the most recent modified directory
-    dir_path = get_most_recent_modified_dir(path=storage_uri)
+    dir_path = Path(storage_uri) / mlflow_run_id
+    assert dir_path.exists(), f"Error! directory does not exist: {dir_path}"
     # find mlflow.runName files within the result dir
     mlflow_run_name = "mlflow.runName"
-    mlflow_path = find_file(directory=dir_path, filename=mlflow_run_name)
+    mlflow_path = find_file(directory=dir_path.resolve(), filename=mlflow_run_name)
     # open file and check that the experiment name is the same
     with open(mlflow_path, mode="r") as f:
         line = f.read()

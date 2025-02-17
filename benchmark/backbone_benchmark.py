@@ -141,7 +141,7 @@ def benchmark_backbone(
     description: str = "No description provided",
     bayesian_search: bool = True,
     test_models: bool = False,
-):
+) -> str:
     """Highest level function to benchmark a backbone using a single node
 
     Args:
@@ -197,6 +197,8 @@ def benchmark_backbone(
             "results_table.json",
             run.info.run_id,
         )
+        run_id = run.info.run_id
+    return run_id
 
 def main():
         
