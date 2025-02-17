@@ -135,12 +135,12 @@ def test_run_benchmark(defaults: Defaults, tasks: List[Task]):
     # open file and check that the experiment name is the same
     with open(meta_yaml_path, mode="r") as f:
         lines = f.readlines()
-        experiment_name_found = False
-        experiment_id_found = False
+        experiment_name_found: bool = False
+        experiment_id_found: bool = False
         for line in lines:
             if experiment_name in line:
                 experiment_name_found = True
-            if experiment_id_found in line:
+            if mlflow_experiment_id in line:
                 experiment_id_found = True
         assert (
             experiment_name_found and experiment_id_found
