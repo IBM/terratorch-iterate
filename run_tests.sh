@@ -8,6 +8,7 @@ std_err_file="~/test-terratorch-iterate.err"
 if test -f "$std_err_file"; then
   echo "Standard Err File exists, so it will be removed"
   rm $std_err_file
+fi
 
 std_out_file="~/test-terratorch-iterate.out"
 
@@ -15,6 +16,7 @@ std_out_file="~/test-terratorch-iterate.out"
 if test -f "$std_out_file"; then
   echo "Standard out file exists, so it will be removed"
   rm $std_out_file
+fi
 
 echo "Submit test job"
 
