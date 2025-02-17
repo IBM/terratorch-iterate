@@ -6,8 +6,7 @@ echo "Running tests"
 STD_ERR_FILE="~/test-terratorch-iterate.err"
 
 # Using the test command
-if [ -f "$STD_ERR_FILE" ]
-then
+if [ -f "$STD_ERR_FILE" ]; then
   echo "Standard Err File exists, so it will be removed to create a new one from scratch"
   rm $STD_ERR_FILE
 else
@@ -18,8 +17,7 @@ fi
 STD_OUT_FILE="~/test-terratorch-iterate.out"
 
 # Using the test command
-if [ -f "$STD_OUT_FILE" ]
-then
+if [ -f "$STD_OUT_FILE" ]; then
   echo "Standard out File exists, so it will be removed to create a new one from scratch"
   rm $STD_OUT_FILE
 else
