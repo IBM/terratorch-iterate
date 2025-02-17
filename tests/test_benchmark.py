@@ -126,12 +126,14 @@ def test_run_benchmark(defaults: Defaults, tasks: List[Task]):
         "optimizer_hparams": {"weight_decay": {"min": 0, "max": 0.4, "type": "real"}},
         "model_args": {"decoder_channels": [64, 128, 256]},
     }
-    unique_id = uuid.uuid4().hex
-    experiment_name = f"test_chesapeake_segmentation_{unique_id}"
-    run_name = f"run_name_geobench_{unique_id}"
+    run_id = uuid.uuid4().hex
+    experiment_name = f"test_chesapeake_segmentation_{run_id}"
+    run_name = f"run_name_geobench_{run_id}"
+
     benchmark_backbone(
         experiment_name=experiment_name,
         run_name=run_name,
+        run_id=run_id,
         defaults=defaults,
         tasks=tasks,
         n_trials=2,
