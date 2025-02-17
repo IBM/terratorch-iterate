@@ -197,8 +197,8 @@ def benchmark_backbone(
             "results_table.json",
             run.info.run_id,
         )
-        run_id = run.info.run_id
-    return run_id
+        experiment_id = run.info.experiment_id
+        return experiment_id
 
 def main():
         
