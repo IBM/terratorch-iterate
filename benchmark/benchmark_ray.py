@@ -22,7 +22,7 @@ from benchmark.benchmark_types import (
     combine_with_defaults,
     optimization_space_type,
 )
-from benchmark.model_fitting import fit_model, ray_tune_model, valid_task_types
+from model_fitting import fit_model, ray_tune_model, valid_task_types
 
 
 def benchmark_backbone_on_task(
