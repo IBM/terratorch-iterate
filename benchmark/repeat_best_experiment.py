@@ -27,13 +27,13 @@ from terratorch.tasks import PixelwiseRegressionTask, SemanticSegmentationTask
 from lightning.pytorch.loggers.mlflow import MLFlowLogger
 import time
 
-from benchmark_types import (
+from benchmark.benchmark_types import (
     Defaults,
     Task,
     TrainingSpec,
     combine_with_defaults,
 )
-from model_fitting import (
+from benchmark.model_fitting import (
     get_default_callbacks,
     inject_hparams,
     valid_task_types,
@@ -200,7 +200,6 @@ def rerun_best_from_backbone(
     optimization_space: dict | None = None,
     description: str | None = None,
     use_ray = False,
-    previously_completed_task_run_names: list,
     **kwargs,
 ):
     """Repeat best experiments from a benchmark run. Only works with a ray cluster.
@@ -216,8 +215,9 @@ def rerun_best_from_backbone(
         raise Exception(f"output_path must be absolute. Consider using $(pwd)/{output_path}.")
     if tmp_dir is None:
         raise Exception("tmp_dir must be specified for runs with ray.")
-    os.environ["RAY_TMPDIR"] = tmp_dir
+    
     if use_ray:
+        os.environ["RAY_TMPDIR"] = tmp_dir
         ray.init(_temp_dir=tmp_dir)
     if backbone_import:
         importlib.import_module(backbone_import)
@@ -235,8 +235,6 @@ def rerun_best_from_backbone(
     table_columns = ["Task", "Metric", "Score", "mlflow_run_name", "mlflow_run_id", "mlflow_run_status"]
     table_entries = []
     ray_tasks = []
-    does_not_need_to_be_run = []
-    tasks_with_new_results = []
 
     repeated_storage_uri = f"{storage_uri}_repeated_exp"
     if not os.path.exists(repeated_storage_uri):
@@ -288,7 +286,7 @@ def rerun_best_from_backbone(
             training_spec = combine_with_defaults(task, defaults)
             lightning_task_class = training_spec.task.type.get_class_from_enum()
 
-            if use_ray: #does not work with past seeds (i.e. continuing in the middle of a task)
+            if use_ray: #experimental
                 successful_seeds = [randint(1, 5000) for i in range(run_repetitions)]
                 for seed in successful_seeds:
                     ray_tasks.append(
@@ -368,9 +366,7 @@ def rerun_best_from_backbone(
                             existing_output.reset_index(inplace=True)
                             existing_output.to_csv(output_path, index=False)
                         else:
-                            new_data.to_csv(output_path, index=False)
-    #mlflow.end_run()
-                
+                            new_data.to_csv(output_path, index=False)                
 
     if use_ray: #experimental
         results = ray.get(ray_tasks)
@@ -382,7 +378,7 @@ def rerun_best_from_backbone(
                 matching_runs[0].info.run_id
             ]
             for task, result in zip(
-                [task for task in tasks_with_new_results for _ in successful_seeds], results
+                [task for task in tasks for _ in seeds], results
             )  # expand tasks
         ]
 
@@ -390,8 +386,6 @@ def rerun_best_from_backbone(
         print(table)
         df = pd.DataFrame(data=table_entries, columns=table_columns)
         df.to_csv(output_path, index=False)
-
-    if use_ray: #experimental
         ray.shutdown()
 
 

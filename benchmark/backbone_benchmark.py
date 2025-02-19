@@ -62,6 +62,7 @@ def benchmark_backbone_on_task(
     n_trials: int = 1,
     save_models: bool = False,
     sampler: BaseSampler | None = None
+    test_models: bool = False,
 ) -> tuple[float, str | list[str] | None, dict[str, Any]]:
 
     optuna_db_path = "/".join(storage_uri.split("/")[:-1]) + "/" + "optuna_db"
@@ -101,6 +102,7 @@ def benchmark_backbone_on_task(
                     storage_uri,
                     run.info.run_id,
                     save_models=save_models,
+                    test_models=test_models,
                 ),
                 {},
             )
@@ -128,6 +130,7 @@ def benchmark_backbone_on_task(
             storage_uri,
             run.info.run_id,
             save_models,
+            test_models,
         )
 
         n_trials = n_trials - len(study.trials)
@@ -181,7 +184,8 @@ def benchmark_backbone(
     run_id: str | None = None,
     description: str = "No description provided",
     bayesian_search: bool = True,
-    continue_existing_experiment: bool = True
+    continue_existing_experiment: bool = True,
+    test_models: bool = False,
     )-> str:
     """Highest level function to benchmark a backbone using a single node
 
@@ -296,7 +300,8 @@ def benchmark_backbone(
                     optimization_space=optimization_space,
                     n_trials=n_trials,
                     save_models=save_models,
-                    sampler=sampler
+                    sampler=sampler,
+                    test_models=test_models,
                 )
                 table_entries.append([task.name, metric_name, best_value, hparams])
 
@@ -357,7 +362,6 @@ def benchmark_backbone(
         save_models = save_models,
         description = description,
         use_ray = False,
-        previously_completed_task_run_names = completed_task_run_names
     )
     
     return experiment_id
