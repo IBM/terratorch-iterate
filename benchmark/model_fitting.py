@@ -250,8 +250,6 @@ def launch_training(
     storage_uri: str,
     parent_run_id: str,
     direction: str,
-    test_models: bool,
-    delete_models_after_testing: bool,
 ) -> float:
     with mlflow.start_run(run_name=run_name, nested=True) as run:
         mlflow.set_tag("mlflow.parentRunId", parent_run_id)
@@ -262,65 +260,26 @@ def launch_training(
             experiment_name=experiment_name,
             run_id=run.info.run_id,
             save_dir=storage_uri,
-            log_model=not delete_models_after_testing,
+            log_model=True,
         )
         trainer.fit(task, datamodule=datamodule)
-        if test_models:
-            trainer.test(ckpt_path="best", datamodule=datamodule)
-        if delete_models_after_testing:
-            # delete the checkpoints folder in the run
-            ckpts_folder = os.path.join(
-                trainer.logger.save_dir,
-                str(trainer.logger.name),
-                trainer.logger.version,
-                "checkpoints",
-            )
-            shutil.rmtree(ckpts_folder)
-
         client = mlflow.tracking.MlflowClient(
             tracking_uri=storage_uri,
         )
 
-        if not metric.startswith("val/"):
+        metric_history = client.get_metric_history(run.info.run_id, metric)
+        if len(metric_history) == 0:
             raise Exception(
-                f"Metric {metric} does not start with `val/`. Please choose a validation metric"
+                f"No values for metric {metric}. Choose a valid metric for this task"
             )
-        for_pd_collect = []
-        val_metrics_names = []
-        for metric_name in client.get_run(run.info.run_id).data.metrics:
-            if metric_name.startswith("val/"):
-                val_metrics_names.append(metric_name)
-                val_metric_history = client.get_metric_history(
-                    run.info.run_id, metric_name
-                )
-                pd_convertible_metric_history = [
-                    {
-                        "metric_name": mm.key,
-                        "step": mm.step,
-                        "value": mm.value,
-                    }
-                    for mm in val_metric_history
-                ]
-                for_pd_collect += pd_convertible_metric_history
-        df_val_metrics = pd.DataFrame.from_records(for_pd_collect)
-        df_val_metrics = df_val_metrics.set_index(
-            ["metric_name", "step"], verify_integrity=True
-        )
-        series_val_metrics = df_val_metrics["value"]
+        metric_values = [m.value for m in metric_history]
         if direction == "max":
-            best_step = series_val_metrics[metric].idxmax()
+            return max(metric_values)
         elif direction == "min":
-            best_step = series_val_metrics[metric].idxmin()
+            return min(metric_values)
         else:
             raise Exception(f"Direction must be `max` or `min` but got {direction}")
 
-        for val_metric_name in val_metrics_names:
-            mlflow.log_metric(
-                f"best_step_{val_metric_name}",
-                series_val_metrics[(val_metric_name, best_step)],
-            )
-
-        return series_val_metrics[(metric, best_step)]
 
 
 def fit_model(
@@ -332,7 +291,6 @@ def fit_model(
     parent_run_id: str,
     trial: optuna.Trial | None = None,
     save_models: bool = False,
-    test_models: bool = False,
 ) -> tuple[float, str]:
     pl.seed_everything(SEED, workers=True)
     training_spec_copy = copy.deepcopy(training_spec)
@@ -355,12 +313,6 @@ def fit_model(
         default_callbacks.append(
             PyTorchLightningPruningCallback(trial, monitor="val/loss")
         )
-
-    delete_models_after_testing = False
-    if test_models and not save_models:
-        # we need to save the models during training to be able to test but can be deleted afterwards
-        save_models = True
-        delete_models_after_testing = True
 
     if save_models:
         default_callbacks.append(
@@ -387,8 +339,6 @@ def fit_model(
         storage_uri,
         parent_run_id,
         task.direction,
-        test_models=test_models,
-        delete_models_after_testing=delete_models_after_testing,
     ), task.metric
 
 
@@ -401,7 +351,6 @@ def fit_model_with_hparams(
     storage_uri: str,
     parent_run_id: str,
     save_models: bool,
-    test_models: bool,
     trial: optuna.Trial,
 ) -> float:
     """
@@ -430,7 +379,6 @@ def fit_model_with_hparams(
         parent_run_id,
         trial,
         save_models=save_models,
-        test_models=test_models,
     )[0]  # return only the metric value for optuna
 
 
