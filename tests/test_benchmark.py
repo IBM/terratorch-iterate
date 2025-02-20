@@ -102,10 +102,12 @@ def find_file(directory: str, filename: str):
 @pytest.mark.parametrize(
     "config, continue_existing_experiment, test_models",
     [
-        ("benchmark_v2_template.yaml", False, False),
-        ("benchmark_v2_template.yaml", True, False),
-        ("benchmark_v2_template.yaml", True, True),
-        ("benchmark_v2_template.yaml", False, True),
+        ("configs/benchmark_v2_template.yaml", False, False),
+        ("configs/benchmark_v2_template.yaml", True, False),
+        ("configs/benchmark_v2_template.yaml", True, True),
+        ("configs/benchmark_v2_template.yaml", False, True),
+        ("configs/dofa_large_patch16_224_upernetdecoder_true.yaml", False, False),
+        ("configs/benchmark_v2_simple.yaml", False, False),
     ],
 )
 def test_run_benchmark(
@@ -117,6 +119,7 @@ def test_run_benchmark(
     assert (
         config_path.exists()
     ), f"Error! config does not exist: {config_path.resolve()}"
+    # instantiate objects from yaml
     parser = ArgumentParser()
     parser.add_argument('--defaults', type=Defaults)  # to ignore model
     parser.add_argument('--optimization_space', type=dict)  # to ignore model
@@ -129,6 +132,7 @@ def test_run_benchmark(
     parser.add_argument('--tasks', type=list[Task])
     config = parser.parse_path("benchmark_v2_template.yaml")
     config_init = parser.instantiate_classes(config)
+    # validate the objects
     experiment_name = config_init.experiment_name
     assert isinstance(experiment_name, str), f"Error! {experiment_name=} is not a str"
     run_name = config_init.run_name
