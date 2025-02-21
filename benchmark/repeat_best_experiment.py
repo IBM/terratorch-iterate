@@ -40,8 +40,6 @@ from benchmark.model_fitting import (
     valid_task_types,
 )
 
-from benchmark.utils import (unflatten)
-
 
 @ray.remote(num_cpus=8, num_gpus=1)
 def remote_fit(
@@ -241,8 +239,6 @@ def rerun_best_from_backbone(
 
     backbone_name = defaults.terratorch_task["model_args"]["backbone"]
     with mlflow.start_run(run_name=backbone_name, run_id=None) as run:
-        mlflow.set_tag("purpose", "backbone_benchmarking")
-
         for task in tasks:
             logger.info(f"\n\ntask: {task.name}")
             matching_runs = [run for run in runs if run.info.run_name.endswith(task.name)]  # type: ignore
@@ -276,10 +272,6 @@ def rerun_best_from_backbone(
             logger.info(f"past_seeds for task: {past_seeds}")
 
             best_params = matching_runs[0].data.params
-            logger.info(f"best_params before unflatten: {best_params}")
-            # eval them
-            best_params = unflatten(best_params)
-            logger.info(f"best_params after unflatten: {best_params}")
             best_params = {k: literal_eval(v) for k, v in best_params.items()}
             training_spec = combine_with_defaults(task, defaults)
             lightning_task_class = training_spec.task.type.get_class_from_enum()

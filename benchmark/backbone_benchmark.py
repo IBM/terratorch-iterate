@@ -273,9 +273,6 @@ def benchmark_backbone(
     #only run hyperparameter optimization (HPO) if there are no experiments with finished HPO 
     if run_hpo:
         logger.info("Running hyperparameter optimization")
-        logger.info(f"run_name: {run_name}")
-        logger.info(f"run_id: {run_id}")
-
         with mlflow.start_run(run_name=run_name, run_id=run_id, description=description) as run:
             for task in tasks:
                 #only run task if it was not completed before
@@ -288,19 +285,19 @@ def benchmark_backbone(
                     
                 task_run_id = task_run_to_id_match[task_run_name] if task_run_name in task_run_to_id_match else None
                 best_value, metric_name, hparams = benchmark_backbone_on_task(
-                    logger,
-                    defaults,
-                    task,
-                    storage_uri,
-                    experiment_name,
-                    experiment_run_id = run.info.run_id,
-                    task_run_id = task_run_id,
-                    optimization_space=optimization_space,
-                    n_trials=n_trials,
-                    save_models=save_models,
-                    sampler=sampler,
-                    test_models=test_models,
-                )
+                                                            logger,
+                                                            defaults,
+                                                            task,
+                                                            storage_uri,
+                                                            experiment_name,
+                                                            experiment_run_id = run.info.run_id,
+                                                            task_run_id = task_run_id,
+                                                            optimization_space=optimization_space,
+                                                            n_trials=n_trials,
+                                                            save_models=save_models,
+                                                            sampler=sampler,
+                                                            test_models=test_models,
+                                                        )
                 table_entries.append([task.name, metric_name, best_value, hparams])
                 table_entries_filename = f"{PATH_TO_JOB_TRACKING}/{experiment_name}-{run.info.run_id}_table_entries.pkl"
                 with open(table_entries_filename, 'wb') as handle:
