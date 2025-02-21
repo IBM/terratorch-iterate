@@ -24,12 +24,25 @@ N_TRIALS_DEFAULT = 16
 REPEATED_SEEDS_DEFAULT = 10
 DATA_PARTITIONS = {
                     "default": 100,
+                    "1.00x_train": 100,
                     "0.20x_train": 50,
                     "0.20x_train": 20,
                     "0.10x_train": 10,
                     "0.01x_train": 1,
                     }
 
+
+def unflatten(dictionary):
+    resultDict = {}
+    for key, value in dictionary.items():
+        parts = key.split(".")
+        d = resultDict
+        for part in parts[:-1]:
+            if part not in d:
+                d[part] = {}
+            d = d[part]
+        d[parts[-1]] = value
+    return resultDict
 
 def sync_mlflow_optuna(
         optuna_db_path: str,
@@ -273,9 +286,11 @@ def extract_parameters(
             best_params = {k: literal_eval(v) for k, v in best_params.items()}
             best_params["experiment_name"] = experiment_name
             best_params["dataset"] = task
-            #best_params["decoder"] = decoder
-            #best_params["early_stop_patience"] = early_stop_patience
-            #best_params["n_trials"] = n_trials
+            best_params["decoder"] = run.data.tags["decoder"]
+            best_params["backbone"] = run.data.tags["backbone"]
+            best_params["early_stop_patience"] = run.data.tags["early_stop_patience"]
+            best_params["n_trials"] = run.data.tags["n_trials"]
+            best_params["partition_name"] = run.data.tags["partition_name"]
             best_params["data_percentages"] = DATA_PARTITIONS[best_params["partition_name"]]
             if 'optimizer_hparams' in best_params:
                 logger.info(f"optimizer_hparams: {best_params['optimizer_hparams'].items()}")  

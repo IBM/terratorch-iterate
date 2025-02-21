@@ -29,26 +29,11 @@ from benchmark.benchmark_types import (
 from benchmark.model_fitting import fit_model, fit_model_with_hparams
 from benchmark.repeat_best_experiment import rerun_best_from_backbone
 from benchmark.mlflow_utils import (check_existing_task_parent_runs,
-                                    check_existing_experiments,
+                                    check_existing_experiments, unflatten,
                                     get_logger, sync_mlflow_optuna,
                                     REPEATED_SEEDS_DEFAULT)
 
 direction_type_to_optuna = {"min": "minimize", "max": "maximize"}
-smp_decoders = ["unet", "deeplab"]
-
-
-
-def unflatten(dictionary):
-    resultDict = {}
-    for key, value in dictionary.items():
-        parts = key.split(".")
-        d = resultDict
-        for part in parts[:-1]:
-            if part not in d:
-                d[part] = {}
-            d = d[part]
-        d[parts[-1]] = value
-    return resultDict
 
 def benchmark_backbone_on_task(
     logger,
@@ -143,20 +128,17 @@ def benchmark_backbone_on_task(
             # callbacks=[champion_callback],
             catch=[torch.cuda.OutOfMemoryError], 
         )
-        best_params = unflatten(study.best_trial.params)
-        logger.info(f'best_params unflattened: {best_params}')
-        params = {
+
+        tags = {
             "early_stop_patience": str(training_spec.task.early_stop_patience),
             "partition_name": str(training_spec.task.datamodule.partition),
             "decoder": str(training_spec.task.terratorch_task["model_args"]["decoder"]),
             "backbone": str(training_spec.task.terratorch_task["model_args"]["backbone"]),
             "n_trials": str(n_trials)
         }
-        mlflow.log_params(params)
-        best_params = best_params | params
-        logger.info(f'best_params combined: {best_params}')
-
-
+        mlflow.set_tags(tags) 
+        
+        best_params = unflatten(study.best_trial.params)
         mlflow.log_params(best_params) # unflatten
         mlflow.log_metric(f"best_{task.metric}", study.best_value)
         return study.best_value, task.metric, best_params
