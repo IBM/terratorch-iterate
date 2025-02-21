@@ -5,7 +5,6 @@ import datetime
 import yaml
 import logging
 from typing import Any
-import plot_tools
 import pandas as pd
 import numpy as np
 import glob
@@ -247,7 +246,7 @@ def extract_parameters(
             continue
         experiment_id = experiment_info.experiment_id
         logger.info(f"\nexperiment_name: {experiment_name} ")  
-        logger.info(f"\nexperiment_id: {experiment_info.experiment_id}")
+        logger.info(f"experiment_id: {experiment_info.experiment_id}")
         exp_parent_run_name = f"top_run_{experiment_name}"
         experiment_parent_run_data = client.search_runs(experiment_ids=[experiment_id], 
                                             filter_string=f'tags."mlflow.runName" LIKE "{exp_parent_run_name}"')
@@ -361,6 +360,8 @@ def delete_nested_experiment_parent_runs(
     counts = []
     runs_in_experiment = []
     logger.info(f"Deleting from experiment_id:{experiment_id} ")
+    logger.info(f"delete_runs:{delete_runs} ")
+
     for exp_parent_run_id in delete_runs:
         runs = []
         runs.append(exp_parent_run_id)
@@ -384,6 +385,8 @@ def delete_nested_experiment_parent_runs(
     else:
         incomplete_run_to_finish = None
 
+    logger.info(f"Deleting runs:{runs_in_experiment} ")
+    logger.info(f"experiment_info.artifact_location:{experiment_info.artifact_location} ")
     for runs in runs_in_experiment:
         for run_id in runs:
             client.delete_run(run_id)
@@ -514,7 +517,7 @@ def check_existing_experiments(
                                                                                     exp_parent_run_id = run.info.run_id, 
                                                                                     storage_uri = storage_uri, 
                                                                                     experiment_name = experiment_name, 
-                                                                                    n_trials = N_TRIALS_DEFAULT)
+                                                                                    n_trials = n_trials)
             logger.info(f"tasks that should be completed: {task_names}")
             logger.info(f"completed_task_run_names: {completed_task_run_names}")
             logger.info(f"all_tasks_in_experiment_finished: {all_tasks_in_experiment_finished}")
@@ -662,7 +665,7 @@ if __name__ == "__main__":
         combined_results = results_and_parameters.loc[results_and_parameters["experiment_name"].str.contains(setting)].copy()
         model_order = visualize_combined_results(
                                     combined_results = results_and_parameters,
-                                    storage_uri = storage_uri
+                                    storage_uri = storage_uri,
                                     logger = logger,
                                     plot_file_base_name = f"multiple_models_{setting}"
                                     )

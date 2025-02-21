@@ -28,10 +28,10 @@ from benchmark.benchmark_types import (
 )
 from benchmark.model_fitting import fit_model, fit_model_with_hparams
 from benchmark.repeat_best_experiment import rerun_best_from_backbone
-from benchmark.mlflow_utils import (delete_nested_experiment_parent_runs,
-                                    check_existing_task_parent_runs,
+from benchmark.mlflow_utils import (check_existing_task_parent_runs,
                                     check_existing_experiments,
-                                    get_logger, sync_mlflow_optuna)
+                                    get_logger, sync_mlflow_optuna,
+                                    REPEATED_SEEDS_DEFAULT)
 
 direction_type_to_optuna = {"min": "minimize", "max": "maximize"}
 smp_decoders = ["unet", "deeplab"]
@@ -88,14 +88,9 @@ def benchmark_backbone_on_task(
         training_spec = combine_with_defaults(task, defaults)
         if "max_epochs" not in training_spec.trainer_args:
             raise Exception("Must specify max_epochs for the trainer")
-        mlflow.log_params("early_stop_patience", training_spec.task.early_stop_patience) 
-        mlflow.log_params("partition_name", training_spec.task.datamodule.init_args.partition) 
-        mlflow.log_params("decoder", training_spec.task.terratorch_task.model_args.decoder) 
-        mlflow.log_params("backbone", training_spec.task.terratorch_task.model_args.backbone) 
-        mlflow.log_params("n_trials", n_trials) 
         task = training_spec.task
         lightning_task_class = training_spec.task.type.get_class_from_enum()
-        
+
         # if no optimization params, just run it
         if optimization_space is None:
             return (
@@ -124,7 +119,6 @@ def benchmark_backbone_on_task(
             load_if_exists=True
         )
 
-
         objective = partial(
             fit_model_with_hparams,
             training_spec,
@@ -150,6 +144,19 @@ def benchmark_backbone_on_task(
             catch=[torch.cuda.OutOfMemoryError], 
         )
         best_params = unflatten(study.best_trial.params)
+        logger.info(f'best_params unflattened: {best_params}')
+        params = {
+            "early_stop_patience": str(training_spec.task.early_stop_patience),
+            "partition_name": str(training_spec.task.datamodule.partition),
+            "decoder": str(training_spec.task.terratorch_task["model_args"]["decoder"]),
+            "backbone": str(training_spec.task.terratorch_task["model_args"]["backbone"]),
+            "n_trials": str(n_trials)
+        }
+        mlflow.log_params(params)
+        best_params = best_params | params
+        logger.info(f'best_params combined: {best_params}')
+
+
         mlflow.log_params(best_params) # unflatten
         mlflow.log_metric(f"best_{task.metric}", study.best_value)
         return study.best_value, task.metric, best_params
@@ -214,9 +221,9 @@ def benchmark_backbone(
     PATH_TO_JOB_TRACKING = base + "/" + "job_progress_tracking"
     REPEATED_EXP_FOLDER = base + "/" + "repeated_exp_output_mlflow"
     logger = get_logger(log_folder= f"{base}/job_logs")
-    if not os.path.exists:
+    if not os.path.exists(REPEATED_EXP_FOLDER):
         os.makedirs(REPEATED_EXP_FOLDER)
-    if not os.path.exists:
+    if not os.path.exists(PATH_TO_JOB_TRACKING):
         os.makedirs(PATH_TO_JOB_TRACKING)
 
     if backbone_import:
@@ -284,6 +291,9 @@ def benchmark_backbone(
     #only run hyperparameter optimization (HPO) if there are no experiments with finished HPO 
     if run_hpo:
         logger.info("Running hyperparameter optimization")
+        logger.info(f"run_name: {run_name}")
+        logger.info(f"run_id: {run_id}")
+
         with mlflow.start_run(run_name=run_name, run_id=run_id, description=description) as run:
             for task in tasks:
                 #only run task if it was not completed before
@@ -310,9 +320,7 @@ def benchmark_backbone(
                     test_models=test_models,
                 )
                 table_entries.append([task.name, metric_name, best_value, hparams])
-
                 table_entries_filename = f"{PATH_TO_JOB_TRACKING}/{experiment_name}-{run.info.run_id}_table_entries.pkl"
-
                 with open(table_entries_filename, 'wb') as handle:
                     pickle.dump(table_entries, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
@@ -368,8 +376,9 @@ def benchmark_backbone(
         save_models = save_models,
         description = description,
         use_ray = False,
+        run_repetitions = REPEATED_SEEDS_DEFAULT
     )
-    
+
     return experiment_id
 
 
