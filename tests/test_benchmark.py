@@ -1,13 +1,14 @@
-from typing import List
 from benchmark.benchmark_types import Defaults, Task, TaskTypeEnum
 import pytest
 from benchmark.backbone_benchmark import benchmark_backbone
 from terratorch.datamodules import MChesapeakeLandcoverNonGeoDataModule
 from albumentations import HorizontalFlip, VerticalFlip, Resize
 from albumentations.pytorch.transforms import ToTensorV2
-import uuid
 import os
 from pathlib import Path
+from benchmark.benchmark_types import Task
+
+from jsonargparse import ArgumentParser
 
 
 BACKBONE_PRETRAINED_FILE = os.getenv(
@@ -98,32 +99,79 @@ def find_file(directory: str, filename: str):
     return None
 
 
-def test_run_benchmark(defaults: Defaults, tasks: List[Task]):
-    storage_uri = OUTPUT_DIR
-    assert Path(storage_uri), f"Error! directory {storage_uri} does not exist"
-    ray_storage_path = None
-    optimization_space = {
-        "batch_size": [8, 32, 64],
-        "lr": {"max": 1e-3, "min": 1e-6, "type": "real", "log": True},
-        "optimizer_hparams": {"weight_decay": {"min": 0, "max": 0.4, "type": "real"}},
-        "model_args": {"decoder_channels": [64, 128, 256]},
-    }
-    run_id = uuid.uuid4().hex
-    experiment_name = f"test_chesapeake_segmentation_{run_id}"
-    run_name = f"run_name_geobench_{run_id}"
+@pytest.mark.parametrize(
+    "config, continue_existing_experiment, test_models",
+    [
+        ("configs/benchmark_v2_template.yaml", False, False),
+        ("configs/benchmark_v2_template.yaml", True, False),
+        ("configs/benchmark_v2_template.yaml", True, True),
+        ("configs/benchmark_v2_template.yaml", False, True),
+        ("configs/dofa_large_patch16_224_upernetdecoder_true.yaml", False, False),
+        ("configs/benchmark_v2_simple.yaml", False, False),
+    ],
+)
+def test_run_benchmark(
+    config: str, continue_existing_experiment: bool, test_models: bool
+):
 
+    path = os.path.join(os.getcwd(), config)
+    config_path = Path(path)
+    assert (
+        config_path.exists()
+    ), f"Error! config does not exist: {config_path.resolve()}"
+    # instantiate objects from yaml
+    parser = ArgumentParser()
+    parser.add_argument('--defaults', type=Defaults)  # to ignore model
+    parser.add_argument('--optimization_space', type=dict)  # to ignore model
+    parser.add_argument('--experiment_name', type=str)  # to ignore model
+    parser.add_argument('--run_name', type=str)  # to ignore model
+    parser.add_argument('--save_models', type=bool)  # to ignore model
+    parser.add_argument('--storage_uri', type=str)  # to ignore model
+    parser.add_argument('--ray_storage_path', type=str)  # to ignore model
+    parser.add_argument('--n_trials', type=int)  # to ignore model
+    parser.add_argument('--tasks', type=list[Task])
+    config = parser.parse_path("benchmark_v2_template.yaml")
+    config_init = parser.instantiate_classes(config)
+    # validate the objects
+    experiment_name = config_init.experiment_name
+    assert isinstance(experiment_name, str), f"Error! {experiment_name=} is not a str"
+    run_name = config_init.run_name
+    assert isinstance(run_name, str), f"Error! {run_name=} is not a str"
+    tasks = config_init.tasks
+    assert isinstance(tasks, list), f"Error! {tasks=} is not a list"
+    for t in tasks:
+        assert isinstance(t, Task), f"Error! {t=} is not a Task"
+    defaults = config_init.defaults
+    assert isinstance(defaults, Defaults), f"Error! {defaults=} is not a Defaults"
+    defaults.trainer_args["max_epochs"] = 5
+    storage_uri = config_init.storage_uri
+    assert isinstance(storage_uri, str), f"Error! {storage_uri=} is not a str"
+    optimization_space = config_init.optimization_space
+    assert isinstance(
+        optimization_space, dict
+    ), f"Error! {optimization_space=} is not a dict"
     mlflow_experiment_id = benchmark_backbone(
         experiment_name=experiment_name,
         run_name=run_name,
         run_id=None,
         defaults=defaults,
         tasks=tasks,
-        n_trials=2,
+        n_trials=1,
         save_models=False,
         storage_uri=storage_uri,
-        ray_storage_path=ray_storage_path,
+        ray_storage_path=None,
         optimization_space=optimization_space,
+        continue_existing_experiment=continue_existing_experiment,
+        test_models=test_models,
     )
+    validate_results(
+        experiment_name=experiment_name,
+        storage_uri=storage_uri,
+        mlflow_experiment_id=mlflow_experiment_id,
+    )
+
+
+def validate_results(experiment_name: str, storage_uri: str, mlflow_experiment_id: str):
     # get the most recent modified directory
     dir_path = Path(storage_uri) / mlflow_experiment_id
     assert dir_path.exists(), f"Error! directory does not exist: {dir_path}"
@@ -134,7 +182,9 @@ def test_run_benchmark(defaults: Defaults, tasks: List[Task]):
     assert meta_yaml_path.exists(), f"Error! {meta_yaml_path=} does not exist"
     # open file and check that the experiment name is the same
     with open(meta_yaml_path, mode="r") as f:
+        # read all the lines
         lines = f.readlines()
+        # try to find experiment id and name in these lines
         experiment_name_found: bool = False
         experiment_id_found: bool = False
         for line in lines:
@@ -144,5 +194,5 @@ def test_run_benchmark(defaults: Defaults, tasks: List[Task]):
                 experiment_id_found = True
         assert (
             experiment_name_found and experiment_id_found
-        ), f"Error! {experiment_id_found=} {experiment_name_found=}"
+        ), f"Error! Both experiment id and name should be in the {meta_yaml_path=}: {experiment_id_found=} {experiment_name_found=}"
     # TODO delete the directories that were created by this test case
