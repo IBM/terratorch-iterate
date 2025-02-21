@@ -28,7 +28,7 @@ from benchmark.benchmark_types import (
 )
 from benchmark.model_fitting import fit_model, fit_model_with_hparams
 from benchmark.repeat_best_experiment import rerun_best_from_backbone
-from benchmark.mlflow_utils import (check_existing_task_parent_runs,
+from benchmark.utils import (check_existing_task_parent_runs,
                                     check_existing_experiments, unflatten,
                                     get_logger, sync_mlflow_optuna,
                                     REPEATED_SEEDS_DEFAULT)
@@ -137,7 +137,7 @@ def benchmark_backbone_on_task(
             "n_trials": str(n_trials)
         }
         mlflow.set_tags(tags) 
-        
+
         best_params = unflatten(study.best_trial.params)
         mlflow.log_params(best_params) # unflatten
         mlflow.log_metric(f"best_{task.metric}", study.best_value)

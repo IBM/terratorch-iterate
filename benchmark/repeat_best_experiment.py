@@ -40,7 +40,7 @@ from benchmark.model_fitting import (
     valid_task_types,
 )
 
-from benchmark.mlflow_utils import (unflatten)
+from benchmark.utils import (unflatten)
 
 
 @ray.remote(num_cpus=8, num_gpus=1)
