@@ -196,12 +196,12 @@ def extract_repeated_experiment_results(
             task_df = df.loc[(df["dataset"] == task) & (df["mlflow_run_status"] == "FINISHED") ].copy()
             task_df = task_df.loc[(task_df["test metric"] != 0.0)].copy()
             rows, _ = task_df.shape
-            if rows >= num_repetitions:
+            if (rows >= num_repetitions) and (sum(np.isnan(task_df["test metric"])) == 0):
                 task_df = task_df.iloc[list(range(num_repetitions))].copy()
+                combine_task_results.append(task_df)
             elif rows < num_repetitions:
                 logger.info(f"TASK INCOMPLETE: {task} only has {rows} seeds")
                 incomplete_experiments.append(experiment_name)
-            combine_task_results.append(task_df)
         if len(combine_task_results) > 0:
             combine_task_results = pd.concat(combine_task_results, axis=0)
             combine_exp_results.append(combine_task_results)
@@ -358,7 +358,7 @@ def get_results_and_parameters(
 def delete_nested_experiment_parent_runs(
         logger: logging.RootLogger,
         delete_runs: list, 
-        experiment_info, #: str, 
+        experiment_info: mlflow.entities.experiment.Experiment, 
         client: mlflow.tracking.client.MlflowClient, 
         leave_one: bool = True
         ) -> str | None:
@@ -567,8 +567,8 @@ def check_existing_experiments(logger,
 
 
 
-def compile_and_visualize(
-                        experiments: list,
+def visualize_combined_results(
+                        combined_results: pd.DataFrame,
                         storage_uri: str,
                         logger: logging.RootLogger,
                         plot_file_base_name: str,
@@ -576,13 +576,12 @@ def compile_and_visualize(
     """
         compiles and visualizes results from experiment
         Args:
-            experiments: list of experiments
+            combined_results: table containing results and parameters for all experiments
             storage_uri: storage_uri from config
             logger: logging.RootLogger to save logs to file
             plot_file_base_name: unique string to be added to all file names
     """
-    logger.info(f"\nStarting to compile and visualize")  
-    repeated_exp_storage_uri = "/".join(storage_uri.split("/")[:-1]) + "/" + "repeated_exp_output"
+    logger.info(f"\nStarting to visualize")  
     save_folder = "/".join(storage_uri.split("/")[:-1]) + "/" + "visualizations"
     if not os.path.exists(f"{save_folder}/tables/"):
         os.makedirs(f"{save_folder}/tables/")
@@ -593,46 +592,13 @@ def compile_and_visualize(
 
     combined_results = []
     model_order = []
-    for experiment_name in experiments:
-        logger.info(f"\nexperiment_name: {experiment_name}")  
-        repeated_results_files = f"{repeated_exp_storage_uri}/{experiment_name}_*"
-        repeated_results_files = glob.glob(repeated_results_files)
-        logger.info(repeated_results_files)
-        if len(set(repeated_results_files)) > 1:
-            logger.info(f"Incorrect number of csv files found for repeated experiments: {experiment_name}. 
-                        expected 1. found {len(set(repeated_results_files))}. \
-                        Only the last file in this list will be used: {set(repeated_results_files)}")
-        elif len(set(repeated_results_files)) == 0:
-            logger.info(f"No number of csv files found for repeated experiments: {experiment_name}.")
-            continue
-        repeated_results_files = sorted(repeated_results_files)[-1]
-        repeated_experiment_results = pd.read_csv(repeated_results_files)
-        if "Unnamed: 0" in list(repeated_experiment_results.columns):
-            repeated_experiment_results.drop(["Unnamed: 0"], axis=1, inplace=True)
-        if (0.0 in list(repeated_experiment_results["Score"])) or (sum(np.isnan(repeated_experiment_results["Score"])) > 0):
-            logger.info(f"Results for {experiment_name} had a zero. Will be skipped.")
-            continue
-
-        repeated_experiment_results["model"] = experiment_name  ####WILL NOT BE NEEDED IF BACKBONE IS EXTRACTED WITH PARAMS
-        combined_results.append(repeated_experiment_results)
-        model_order.append(experiment_name)
-
-    num_experiments = len(combined_results)
+    experiments = list(set(combined_results["experiment_name"]))
+    combined_results = combined_results.rename(columns={"experiment_name": "model"})
+    num_experiments = len(experiments)
     fig_size = (num_experiments*5, 6) if num_experiments>=3 else (15,6)
     n_legend_rows = num_experiments//3 if num_experiments>=3 else 1
-    logger.debug(f"number of experiments to compare: {len(combined_results)}")
-
-    if len(combined_results) == 0:
-        return None
-    combined_results = pd.concat(combined_results, ignore_index=True)
-    combined_results.to_csv(f"{save_folder}/tables/{plot_file_base_name}_combined_results.csv")
-    logger.debug(f"combined_results :{combined_results.shape}")
-
+    model_order = sorted(experiments)
     model_colors = dict( zip(model_order, sns.color_palette("tab20", n_colors=len(model_order))))
-    combined_results = pd.read_csv(f"{save_folder}/tables/{plot_file_base_name}_combined_results.csv", index_col="Unnamed: 0")
-    model_order = sorted(model_order)
-    logger.debug(f"model_order: {model_order}")
-    logger.debug(f"model_colors: {model_colors}")
 
     try: 
         #plot raw values
@@ -645,7 +611,7 @@ def compile_and_visualize(
                                     inner="points", 
                                     fig_size=fig_size, 
                                     n_legend_rows=n_legend_rows)
-        plt.savefig(f"{save_folder}/plots/box_{plot_file_base_name}_raw.png", bbox_inches="tight")
+        plt.savefig(f"{save_folder}/plots/violin_{plot_file_base_name}_raw.png", bbox_inches="tight")
         plt.close()
 
         #plot normalized, bootstrapped values values
@@ -662,7 +628,7 @@ def compile_and_visualize(
                                                                 n_legend_rows=n_legend_rows)
                                                                 #dataset_name_map=dataset_name_map)
         
-        plt.savefig(f"{save_folder}/plots/box_{plot_file_base_name}_normalized_bootstrapped.png", bbox_inches="tight")
+        plt.savefig(f"{save_folder}/plots/violin_{plot_file_base_name}_normalized_bootstrapped.png", bbox_inches="tight")
         plt.close()
         bootstrapped_iqm.to_csv(f"{save_folder}/tables/{plot_file_base_name}_bootstrapped_iqm.csv")
         combined_results.to_csv(f"{save_folder}/tables/{plot_file_base_name}_normalized_combined_results.csv")
@@ -708,15 +674,16 @@ if __name__ == "__main__":
 
 
     settings_per_model= ["early_stopping_10_data_100_perc", 
-                        "early_stopping_20_data_10_perc", 
+                        "early_stopping_50_data_10_perc", 
                         "early_stopping_50_data_100_perc"]
     
     #create box plots across multiple models
     for setting in settings_per_model:
-        exp_for_setting = [exp for exp in list_of_experiments if setting in exp]
-        model_order = compile_and_visualize(
-                                    storage_uri = storage_uri,
+        combined_results = results_and_parameters.loc[results_and_parameters["experiment_name"].str.contains(setting)].copy()
+        model_order = visualize_combined_results(
+                                    combined_results = results_and_parameters,
+                                    storage_uri = storage_uri
                                     logger = logger,
-                                    experiments = exp_for_setting,
                                     plot_file_base_name = f"multiple_models_{setting}"
                                     )
+
