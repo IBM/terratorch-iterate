@@ -130,7 +130,7 @@ def test_run_benchmark(
     parser.add_argument('--ray_storage_path', type=str)  # to ignore model
     parser.add_argument('--n_trials', type=int)  # to ignore model
     parser.add_argument('--tasks', type=list[Task])
-    config = parser.parse_path("benchmark_v2_template.yaml")
+    config = parser.parse_path(str(config_path))
     config_init = parser.instantiate_classes(config)
     # validate the objects
     experiment_name = config_init.experiment_name
