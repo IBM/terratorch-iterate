@@ -150,6 +150,8 @@ def test_run_benchmark(
     assert isinstance(
         optimization_space, dict
     ), f"Error! {optimization_space=} is not a dict"
+    ray_storage_path = config_init.ray_storage_path
+    assert isinstance(ray_storage_path, str), f"Error! {ray_storage_path=} is not a str"
     mlflow_experiment_id = benchmark_backbone(
         experiment_name=experiment_name,
         run_name=run_name,
@@ -159,7 +161,7 @@ def test_run_benchmark(
         n_trials=1,
         save_models=False,
         storage_uri=storage_uri,
-        ray_storage_path=None,
+        ray_storage_path=ray_storage_path,
         optimization_space=optimization_space,
         continue_existing_experiment=continue_existing_experiment,
         test_models=test_models,
