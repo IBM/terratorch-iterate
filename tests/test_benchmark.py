@@ -106,8 +106,8 @@ def find_file(directory: str, filename: str):
         # ("configs/benchmark_v2_template.yaml", True, False),
         # ("configs/benchmark_v2_template.yaml", True, True),
         # ("configs/benchmark_v2_template.yaml", False, True),
-        # ("configs/dofa_large_patch16_224_upernetdecoder_true.yaml", False, False),
-        ("configs/benchmark_v2_simple.yaml", False, False),
+        ("configs/dofa_large_patch16_224_upernetdecoder_true.yaml", False, False),
+        # ("configs/benchmark_v2_simple.yaml", False, False),
     ],
 )
 def test_run_benchmark(
