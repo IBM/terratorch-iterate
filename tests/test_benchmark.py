@@ -24,6 +24,12 @@ OUTPUT_DIR = os.getenv(
     "OUTPUT_DIR", "/dccstor/geofm-finetuning/terratorch-iterate-test"
 )
 
+RAY_STORAGE = os.getenv(
+    "RAY_STORAGE", "/dccstor/geofm-finetuning/terratorch-iterate-test/ray_storage"
+)
+
+
+
 
 @pytest.fixture(scope="module")
 def defaults() -> Defaults:
@@ -145,13 +151,13 @@ def test_run_benchmark(
     defaults = config_init.defaults
     assert isinstance(defaults, Defaults), f"Error! {defaults=} is not a Defaults"
     # defaults.trainer_args["max_epochs"] = 5
-    storage_uri = config_init.storage_uri
+    storage_uri = OUTPUT_DIR
     assert isinstance(storage_uri, str), f"Error! {storage_uri=} is not a str"
     optimization_space = config_init.optimization_space
     assert isinstance(
         optimization_space, dict
     ), f"Error! {optimization_space=} is not a dict"
-    ray_storage_path = config_init.ray_storage_path
+    ray_storage_path = RAY_STORAGE
     assert isinstance(ray_storage_path, str), f"Error! {ray_storage_path=} is not a str"
     n_trials = config_init.n_trials
     assert isinstance(n_trials, int) and n_trials > 0, f"Error! {n_trials=} is invalid"
