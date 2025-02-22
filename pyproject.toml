@@ -16,7 +16,12 @@ name = "terratorch-iterate"
 version = "0.1.0"
 description = "A tool for benchmarking and hpo"
 authors = [
-     { name = "Carlos Gomes", email = "carlos.gomes@ibm.com" },
+      { name = "Carlos Gomes", email = "carlos.gomes@ibm.com" },
+      { name = "Naomi Simumba"},
+      { name = "Francesc Marti Escofet"},
+      { name = "Daniela Szwarcman"},
+      { name = "Leonardo Pondian Tizzei"},
+      { name = "Romeo Kienzler"} 
 ]
 license = { "text" = "Apache License, Version 2.0" }
 classifiers = [
