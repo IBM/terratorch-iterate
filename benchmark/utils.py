@@ -50,6 +50,7 @@ def sync_mlflow_optuna(
         experiment_name: str,
         task_run_id: str | None,
         task: Task,
+        n_trials: int,
         logger: logging.RootLogger,
         ) -> str | None:
     """        
@@ -395,13 +396,13 @@ def delete_nested_experiment_parent_runs(
 
     if leave_one and (len(counts) > 0):
         index_to_keep = counts.index(max(counts))
-        incomplete_run_to_finish = exp_parent_run_id[index_to_keep]
+        incomplete_run_to_finish = exp_parent_run_ids[index_to_keep]
         runs_in_experiment.pop(index_to_keep)
     else:
         incomplete_run_to_finish = None
 
     logger.info(f"Deleting runs:{runs_in_experiment} ")
-    logger.info(f"experiment_info.artifact_location:{experiment_info.artifact_location} ")
+    logger.info(f"experiment_info.artifact_location:{experiment_info.artifact_location}")
     for runs in runs_in_experiment:
         for run_id in runs:
             client.delete_run(run_id)
@@ -465,7 +466,6 @@ def check_existing_task_parent_runs(
         else:
             task_parent_status = False
         all_tasks_finished.append(task_parent_status)
-        logger.info(f"task: {task_parent_run.info.run_name} complete: {task_parent_status}")
 
     if all(all_tasks_finished) and (len(all_tasks_finished) > 0) :
         all_tasks_finished = True

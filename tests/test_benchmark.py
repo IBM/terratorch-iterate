@@ -21,7 +21,7 @@ SEGMENTATION_V1 = os.getenv(
 )
 
 OUTPUT_DIR = os.getenv(
-    "OUTPUT_DIR", "/dccstor/geofm-finetuning/terratorch-iterate-test"
+    "OUTPUT_DIR", "/dccstor/geofm-finetuning/terratorch-iterate-test-2/hpo"
 )
 
 RAY_STORAGE = os.getenv(

@@ -61,6 +61,7 @@ def benchmark_backbone_on_task(
                             experiment_name = experiment_name,
                             task_run_id = task_run_id,
                             task = task,
+                            n_trials = n_trials,
                             logger = logger
                             )
 
