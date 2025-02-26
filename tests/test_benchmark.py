@@ -25,7 +25,7 @@ OUTPUT_DIR = os.getenv(
 )
 
 RAY_STORAGE = os.getenv(
-    "RAY_STORAGE", "/dccstor/geofm-finetuning/terratorch-iterate-test/ray_storage"
+    "RAY_STORAGE", "/dccstor/geofm-finetuning/terratorch-iterate-test-2/ray_storage"
 )
 
 
@@ -140,6 +140,7 @@ def test_run_benchmark(
     config_init = parser.instantiate_classes(config)
     # validate the objects
     experiment_name = config_init.experiment_name
+    experiment_name = f"{experiment_name}_continue_{continue_existing_experiment}_test_models_{test_models}"
     assert isinstance(experiment_name, str), f"Error! {experiment_name=} is not a str"
     run_name = config_init.run_name
     if run_name is not None:
