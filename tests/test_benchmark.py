@@ -112,7 +112,7 @@ def find_file(directory: str, filename: str):
         # ("configs/benchmark_v2_template.yaml", True, False),
         # ("configs/benchmark_v2_template.yaml", True, True),
         # ("configs/benchmark_v2_template.yaml", False, True),
-        ("configs/dofa_large_patch16_224_upernetdecoder_true.yaml", False, False),
+        ("configs/dofa_large_patch16_224_upernetdecoder_true_modified.yaml", False, False),
         # ("configs/benchmark_v2_simple.yaml", False, False),
     ],
 )
@@ -152,18 +152,18 @@ def test_run_benchmark(
     defaults = config_init.defaults
     assert isinstance(defaults, Defaults), f"Error! {defaults=} is not a Defaults"
     # defaults.trainer_args["max_epochs"] = 5
-    storage_uri = OUTPUT_DIR / uuid.uuid4().hex / "hpo"
+    storage_uri = OUTPUT_DIR 
     assert isinstance(storage_uri, str), f"Error! {storage_uri=} is not a str"
-    storage_uri_path = Path(storage_uri)
+    storage_uri_path = Path(storage_uri) / uuid.uuid4().hex / "hpo"
     if not storage_uri_path.exists():
         storage_uri_path.mkdir()
     optimization_space = config_init.optimization_space
     assert isinstance(
         optimization_space, dict
     ), f"Error! {optimization_space=} is not a dict"
-    ray_storage = RAY_STORAGE / uuid.uuid4().hex 
+    ray_storage = RAY_STORAGE 
     assert isinstance(ray_storage, str), f"Error! {ray_storage=} is not a str"
-    ray_storage_path = Path(ray_storage)
+    ray_storage_path = Path(ray_storage) / uuid.uuid4().hex 
     if not ray_storage_path.exists():
         ray_storage_path.mkdir()
     n_trials = config_init.n_trials
