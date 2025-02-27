@@ -7,7 +7,7 @@ from albumentations.pytorch.transforms import ToTensorV2
 import os
 from pathlib import Path
 from benchmark.benchmark_types import Task
-
+import uuid
 from jsonargparse import ArgumentParser
 
 
@@ -21,7 +21,7 @@ SEGMENTATION_V1 = os.getenv(
 )
 
 OUTPUT_DIR = os.getenv(
-    "OUTPUT_DIR", "/dccstor/geofm-finetuning/terratorch-iterate-test-2/hpo"
+    "OUTPUT_DIR", "/dccstor/geofm-finetuning/terratorch-iterate-test-2/"
 )
 
 RAY_STORAGE = os.getenv(
@@ -152,14 +152,20 @@ def test_run_benchmark(
     defaults = config_init.defaults
     assert isinstance(defaults, Defaults), f"Error! {defaults=} is not a Defaults"
     # defaults.trainer_args["max_epochs"] = 5
-    storage_uri = OUTPUT_DIR
+    storage_uri = OUTPUT_DIR / uuid.uuid4().hex / "hpo"
     assert isinstance(storage_uri, str), f"Error! {storage_uri=} is not a str"
+    storage_uri_path = Path(storage_uri)
+    if not storage_uri_path.exists():
+        storage_uri_path.mkdir()
     optimization_space = config_init.optimization_space
     assert isinstance(
         optimization_space, dict
     ), f"Error! {optimization_space=} is not a dict"
-    ray_storage_path = RAY_STORAGE
-    assert isinstance(ray_storage_path, str), f"Error! {ray_storage_path=} is not a str"
+    ray_storage = RAY_STORAGE / uuid.uuid4().hex 
+    assert isinstance(ray_storage, str), f"Error! {ray_storage=} is not a str"
+    ray_storage_path = Path(ray_storage)
+    if not ray_storage_path.exists():
+        ray_storage_path.mkdir()
     n_trials = config_init.n_trials
     assert isinstance(n_trials, int) and n_trials > 0, f"Error! {n_trials=} is invalid"
     mlflow_experiment_id = benchmark_backbone(
@@ -171,7 +177,7 @@ def test_run_benchmark(
         n_trials=n_trials,
         save_models=False,
         storage_uri=storage_uri,
-        ray_storage_path=ray_storage_path,
+        ray_storage_path=ray_storage,
         optimization_space=optimization_space,
         continue_existing_experiment=continue_existing_experiment,
         test_models=test_models,
