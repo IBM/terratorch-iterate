@@ -70,7 +70,7 @@ dependencies = [
 "gputil",
 "asyncio",
 "opencv-python-headless",
-"hpbandster",
+# "hpbandster", deprecated https://github.com/automl/HpBandSter/tree/master?tab=readme-ov-file#news-not-maintained-anymore
 "configspace",
 "optuna-integration",
 "geobench"
