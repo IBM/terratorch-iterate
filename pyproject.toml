@@ -38,7 +38,7 @@ dependencies = [
 "click",
 # optional dependencies that can be opted in by apps.
 "torchvision>=0.17.0",
-"terratorch>=0.99.8", 
+"terratorch @ git+https://github.com/IBM/terratorch@92bd85a16cb7301d90f6b674d32aadfba83b079e", 
 
 # requests>=2.32.0 because of this vulnerability https://github.com/psf/requests/security/advisories/GHSA-9wx4-h78v-vm56
 "requests>=2.32.0",
@@ -73,7 +73,7 @@ dependencies = [
 # "hpbandster", deprecated https://github.com/automl/HpBandSter/tree/master?tab=readme-ov-file#news-not-maintained-anymore
 "configspace",
 "optuna-integration",
-"geobench"
+"geobench @ git+https://github.com/ServiceNow/geo-bench.git@119dfdb6bb77582f9816e362b032455cfd6c52a7"
 ]
 
 [project.optional-dependencies]
