@@ -177,11 +177,12 @@ def test_run_benchmark(
             print(f"Error creating directory: {e}")
     n_trials = config_init.n_trials
     assert isinstance(n_trials, int) and n_trials > 0, f"Error! {n_trials=} is invalid"
-
+    # run_repetions is an optional parameter
     run_repetitions = config_init.run_repetitions
-    assert (
-        isinstance(run_repetitions, int) and run_repetitions > 0
-    ), f"Error! {run_repetitions=} is invalid"
+    if run_repetitions is not None:
+        assert (
+            isinstance(run_repetitions, int) and run_repetitions > 0
+        ), f"Error! {run_repetitions=} is invalid"
     mlflow_experiment_id = benchmark_backbone(
         experiment_name=experiment_name,
         run_name=run_name,
