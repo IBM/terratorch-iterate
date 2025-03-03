@@ -200,7 +200,7 @@ def test_run_benchmark(
     )
     validate_results(
         experiment_name=experiment_name,
-        storage_uri=storage_uri,
+        storage_uri=str(storage_uri_path),
         mlflow_experiment_id=mlflow_experiment_id,
     )
 
