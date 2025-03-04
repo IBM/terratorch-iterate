@@ -110,9 +110,9 @@ def find_file(directory: str, filename: str):
         # ("configs/benchmark_v2_simple.yaml", False, True),
         # ("configs/benchmark_v2_simple.yaml", True, True),
         # ("configs/benchmark_v2_simple.yaml", True, False),
-        # ("configs/dofa_large_patch16_224_upernetdecoder_true_modified.yaml", True, True),
-        # ("configs/dofa_large_patch16_224_upernetdecoder_true_modified.yaml", True, False),
-        # ("configs/dofa_large_patch16_224_upernetdecoder_true_modified.yaml", False, True),
+        ("configs/dofa_large_patch16_224_upernetdecoder_true_modified.yaml", True, True),
+        ("configs/dofa_large_patch16_224_upernetdecoder_true_modified.yaml", True, False),
+        ("configs/dofa_large_patch16_224_upernetdecoder_true_modified.yaml", False, True),
         ("configs/dofa_large_patch16_224_upernetdecoder_true_modified.yaml", False, False),
     ],
 )
