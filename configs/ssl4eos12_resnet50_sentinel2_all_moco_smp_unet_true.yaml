@@ -1,8 +1,7 @@
 experiment_name: ssl4eos12_resnet50_sentinel2_all_moco_smp_unet
-run_name: ssl4eos12_resnet50_sentinel2_all_moco_geobench_v2
 defaults:
   trainer_args:
-    max_epochs: 100
+    max_epochs: 1
     log_every_n_steps: 1
   terratorch_task:
     model_args:
@@ -22,7 +21,7 @@ tasks:
     type: segmentation
     direction: max
     metric: val/Multiclass_Jaccard_Index
-    early_stop_patience: 50
+    early_stop_patience: 5
     terratorch_task:
       loss: ce
       model_args:
@@ -41,7 +40,7 @@ tasks:
     datamodule:
       class_path: terratorch.datamodules.MChesapeakeLandcoverNonGeoDataModule
       init_args:
-        partition: default
+        partition: "0.01x_train"
         train_transform:
           - class_path: albumentations.HorizontalFlip
             init_args:
@@ -102,11 +101,10 @@ tasks:
           - 256
           - 128
           - 64
-
     datamodule:
       class_path: terratorch.datamodules.MBeninSmallHolderCashewsNonGeoDataModule
       init_args:
-        partition: default
+        partition: "0.01x_train"
         train_transform:
           - class_path: albumentations.HorizontalFlip
             init_args:
@@ -151,7 +149,7 @@ tasks:
     type: segmentation
     direction: max
     metric: val/Multiclass_Jaccard_Index
-    early_stop_patience: 50
+    early_stop_patience: 5
     terratorch_task:
       loss: ce
       model_args:
@@ -166,11 +164,10 @@ tasks:
           - 256
           - 128
           - 64
-
     datamodule:
       class_path: terratorch.datamodules.MNeonTreeNonGeoDataModule
       init_args:
-        partition: default
+        partition: "0.01x_train"
         train_transform:
           - class_path: albumentations.HorizontalFlip
             init_args:
@@ -206,7 +203,7 @@ tasks:
     type: segmentation
     direction: max
     metric: val/Multiclass_Jaccard_Index
-    early_stop_patience: 50
+    early_stop_patience: 5
     terratorch_task:
       loss: ce
       model_args:
@@ -221,11 +218,10 @@ tasks:
           - 256
           - 128
           - 64
-
     datamodule:
       class_path: terratorch.datamodules.MNzCattleNonGeoDataModule
       init_args:
-        partition: default
+        partition: "0.01x_train"
         train_transform:
           - class_path: albumentations.HorizontalFlip
             init_args:
@@ -261,7 +257,7 @@ tasks:
     type: segmentation
     direction: max
     metric: val/Multiclass_Jaccard_Index
-    early_stop_patience: 50
+    early_stop_patience: 5
     terratorch_task:
       loss: ce
       model_args:
@@ -280,7 +276,7 @@ tasks:
     datamodule:
       class_path: terratorch.datamodules.MPv4gerSegNonGeoDataModule
       init_args:
-        partition: default
+        partition: "0.01x_train"
         train_transform:
           - class_path: albumentations.HorizontalFlip
             init_args:
@@ -316,7 +312,7 @@ tasks:
     type: segmentation
     direction: max
     metric: val/Multiclass_Jaccard_Index
-    early_stop_patience: 50
+    early_stop_patience: 5
     terratorch_task:
       loss: ce
       model_args:
@@ -343,7 +339,7 @@ tasks:
     datamodule:
       class_path: terratorch.datamodules.m_SA_crop_type.MSACropTypeNonGeoDataModule
       init_args:
-        partition: default
+        partition: "0.01x_train"
         train_transform:
           - class_path: albumentations.HorizontalFlip
             init_args:
@@ -385,10 +381,10 @@ tasks:
           - "SWIR_1"
           - "SWIR_2"
 
-n_trials: 16
+n_trials: 1
 save_models: False
-storage_uri: /mnt/data/test_new/hpo_results
-ray_storage_path: /mnt/data/test_new/ray_storage_results
+storage_uri: /nsimumba/test_terratorch/output/hpo_results
+ray_storage_path: /nsimumba/test_terratorch/output/ray_storage_results
 optimization_space:
   batch_size:
     - 8

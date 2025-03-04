@@ -13,10 +13,6 @@ from jsonargparse import CLI
 from optuna.pruners import HyperbandPruner
 from optuna.samplers import BaseSampler, RandomSampler
 from tabulate import tabulate
-from optuna.study import MaxTrialsCallback
-from mlflow.exceptions import MlflowException, MissingConfigException
-import subprocess
-import datetime
 import pickle
 
 from benchmark.benchmark_types import (
@@ -28,27 +24,12 @@ from benchmark.benchmark_types import (
 )
 from benchmark.model_fitting import fit_model, fit_model_with_hparams
 from benchmark.repeat_best_experiment import rerun_best_from_backbone
-from benchmark.mlflow_utils import (delete_nested_experiment_parent_runs,
-                                    check_existing_task_parent_runs,
-                                    check_existing_experiments,
-                                    get_logger, sync_mlflow_optuna)
+from benchmark.utils import (check_existing_task_parent_runs,
+                                    check_existing_experiments, unflatten,
+                                    get_logger, sync_mlflow_optuna,
+                                    REPEATED_SEEDS_DEFAULT)
 
 direction_type_to_optuna = {"min": "minimize", "max": "maximize"}
-smp_decoders = ["unet", "deeplab"]
-
-
-
-def unflatten(dictionary):
-    resultDict = {}
-    for key, value in dictionary.items():
-        parts = key.split(".")
-        d = resultDict
-        for part in parts[:-1]:
-            if part not in d:
-                d[part] = {}
-            d = d[part]
-        d[parts[-1]] = value
-    return resultDict
 
 def benchmark_backbone_on_task(
     logger,
@@ -76,6 +57,7 @@ def benchmark_backbone_on_task(
                             experiment_name = experiment_name,
                             task_run_id = task_run_id,
                             task = task,
+                            n_trials = n_trials,
                             logger = logger
                             )
 
@@ -119,7 +101,6 @@ def benchmark_backbone_on_task(
             load_if_exists=True
         )
 
-
         objective = partial(
             fit_model_with_hparams,
             training_spec,
@@ -144,6 +125,16 @@ def benchmark_backbone_on_task(
             # callbacks=[champion_callback],
             catch=[torch.cuda.OutOfMemoryError], 
         )
+
+        tags = {
+            "early_stop_patience": str(training_spec.task.early_stop_patience),
+            "partition_name": str(training_spec.task.datamodule.partition),
+            "decoder": str(training_spec.task.terratorch_task["model_args"]["decoder"]),
+            "backbone": str(training_spec.task.terratorch_task["model_args"]["backbone"]),
+            "n_trials": str(n_trials)
+        }
+        mlflow.set_tags(tags) 
+
         best_params = unflatten(study.best_trial.params)
         mlflow.log_params(best_params) # unflatten
         mlflow.log_metric(f"best_{task.metric}", study.best_value)
@@ -186,6 +177,7 @@ def benchmark_backbone(
     bayesian_search: bool = True,
     continue_existing_experiment: bool = True,
     test_models: bool = False,
+    run_repetitions: int = REPEATED_SEEDS_DEFAULT
     )-> str:
     """Highest level function to benchmark a backbone using a single node
 
@@ -204,14 +196,15 @@ def benchmark_backbone(
         run_id (str | None): id of existing mlflow run to use as top-level run. Useful to add more experiments to a previous benchmark run. Defaults to None.
         description (str): Optional description for mlflow parent run.
         bayesian_search (bool): Whether to use bayesian optimization for the hyperparameter search. False uses random sampling. Defaults to True.
+        run_repetitions (int): Number of times that the experiment will be repeated. Defaults to 1.
     """
     base = "/".join(storage_uri.split("/")[:-1]) 
     PATH_TO_JOB_TRACKING = base + "/" + "job_progress_tracking"
     REPEATED_EXP_FOLDER = base + "/" + "repeated_exp_output_mlflow"
     logger = get_logger(log_folder= f"{base}/job_logs")
-    if not os.path.exists:
+    if not os.path.exists(REPEATED_EXP_FOLDER):
         os.makedirs(REPEATED_EXP_FOLDER)
-    if not os.path.exists:
+    if not os.path.exists(PATH_TO_JOB_TRACKING):
         os.makedirs(PATH_TO_JOB_TRACKING)
 
     if backbone_import:
@@ -231,6 +224,7 @@ def benchmark_backbone(
 
     backbone = defaults.terratorch_task["model_args"]["backbone"]
     task_names = [task.name for task in tasks]
+    run_name = f"top_run_{experiment_name}" if run_name is None else run_name
 
     completed_task_run_names = []
     run_hpo = True
@@ -277,7 +271,7 @@ def benchmark_backbone(
     
     #only run hyperparameter optimization (HPO) if there are no experiments with finished HPO 
     if run_hpo:
-        logger.info("Running hyperparameter optimization ")
+        logger.info("Running hyperparameter optimization")
         with mlflow.start_run(run_name=run_name, run_id=run_id, description=description) as run:
             for task in tasks:
                 #only run task if it was not completed before
@@ -290,23 +284,21 @@ def benchmark_backbone(
                     
                 task_run_id = task_run_to_id_match[task_run_name] if task_run_name in task_run_to_id_match else None
                 best_value, metric_name, hparams = benchmark_backbone_on_task(
-                    logger,
-                    defaults,
-                    task,
-                    storage_uri,
-                    experiment_name,
-                    experiment_run_id = run.info.run_id,
-                    task_run_id = task_run_id,
-                    optimization_space=optimization_space,
-                    n_trials=n_trials,
-                    save_models=save_models,
-                    sampler=sampler,
-                    test_models=test_models,
-                )
+                                                            logger,
+                                                            defaults,
+                                                            task,
+                                                            storage_uri,
+                                                            experiment_name,
+                                                            experiment_run_id = run.info.run_id,
+                                                            task_run_id = task_run_id,
+                                                            optimization_space=optimization_space,
+                                                            n_trials=n_trials,
+                                                            save_models=save_models,
+                                                            sampler=sampler,
+                                                            test_models=test_models,
+                                                        )
                 table_entries.append([task.name, metric_name, best_value, hparams])
-
                 table_entries_filename = f"{PATH_TO_JOB_TRACKING}/{experiment_name}-{run.info.run_id}_table_entries.pkl"
-
                 with open(table_entries_filename, 'wb') as handle:
                     pickle.dump(table_entries, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
@@ -362,8 +354,9 @@ def benchmark_backbone(
         save_models = save_models,
         description = description,
         use_ray = False,
+        run_repetitions = run_repetitions
     )
-    
+
     return experiment_id
 
 

@@ -16,7 +16,12 @@ name = "terratorch-iterate"
 version = "0.1.0"
 description = "A tool for benchmarking and hpo"
 authors = [
-     { name = "Carlos Gomes", email = "carlos.gomes@ibm.com" },
+      { name = "Carlos Gomes"},
+      { name = "Naomi Simumba"},
+      { name = "Francesc Marti Escofet"},
+      { name = "Daniela Szwarcman"},
+      { name = "Leonardo Pondian Tizzei", email = "ltizzei@br.ibm.com" },
+      { name = "Romeo Kienzler"} 
 ]
 license = { "text" = "Apache License, Version 2.0" }
 classifiers = [
@@ -33,7 +38,7 @@ dependencies = [
 "click",
 # optional dependencies that can be opted in by apps.
 "torchvision>=0.17.0",
-"terratorch>=0.99.8", 
+"terratorch @ git+https://github.com/IBM/terratorch@92bd85a16cb7301d90f6b674d32aadfba83b079e", 
 
 # requests>=2.32.0 because of this vulnerability https://github.com/psf/requests/security/advisories/GHSA-9wx4-h78v-vm56
 "requests>=2.32.0",
@@ -55,19 +60,20 @@ dependencies = [
 "werkzeug>=3.0.3",
 # fix this pytorch-lightning issue https://nvd.nist.gov/vuln/detail/CVE-2024-5452
 "pytorch-lightning>=2.3.3",
-"more-itertools~=10.2.0", 
-"importlib-metadata~=4.13.0",
-"numpy~=1.26.0",
-"optuna~=3.5.0",
-"tabulate~=0.9.0",
-"types-tabulate~=0.9.0.20240106",
-"ray~=2.37.0",
-"gputil~=1.4.0",
-"asyncio~=3.4.3",
-"opencv-python-headless~=4.9.0.80",
-"hpbandster~=0.7.4",
-"configspace~=0.7.1",
-"optuna-integration~=3.6.0",
+"more-itertools", 
+"importlib-metadata",
+"numpy",
+"optuna",
+"tabulate",
+"types-tabulate",
+"ray",
+"gputil",
+"asyncio",
+"opencv-python-headless",
+# "hpbandster", deprecated https://github.com/automl/HpBandSter/tree/master?tab=readme-ov-file#news-not-maintained-anymore
+"configspace",
+"optuna-integration",
+"geobench @ git+https://github.com/ServiceNow/geo-bench.git@119dfdb6bb77582f9816e362b032455cfd6c52a7"
 ]
 
 [project.optional-dependencies]
@@ -76,7 +82,8 @@ dev = [
   "flake8", 
   "mkdocs-material",
   "mkdocstrings[python]",
-  "mike" # for building docs with versions
+  "mike", # for building docs with versions
+  "tox"
 ]
 
 test = [
