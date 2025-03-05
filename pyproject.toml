@@ -98,9 +98,9 @@ line-length = 88
 skip-string-normalization = true
 
 [project.scripts]
-benchmark = "benchmark.backbone_benchmark:main"
+terratorch = "benchmark.main:main"
 ray_benchmark = "benchmark.benchmark_ray:main"
-repeat_experiments = "benchmark.repeat_best_experiment:main"
+repeat_experiments = "benchmark.main:main"
 
 
 [tool.isort]
