@@ -52,8 +52,8 @@ To do this it relies on a configuration file where the benchmark is defined. Thi
 See `benchmark_v2_template.yaml` in the git repo for an example.
 
 Besides the `--config` argument, terratorch-iterate also has two other arguments: 
-* if users type `--hpo` terratorch-iterate will optimize hyperparameters. Otherwise, it will rerun best experiment 
-* if users type `--repeat` terratorch-iterate will repeat the best experiment. Otherwise, terratorch-iterate will not rerun any experiment
+* if users include `--hpo` argument, then terratorch-iterate will optimize hyperparameters. Otherwise, it will rerun best experiment 
+* if users include `--repeat` argument, then terratorch-iterate will repeat the best experiment. Otherwise, terratorch-iterate will not rerun any experiment
 
 If users want to optimize hyperparameters:
 ```shell
