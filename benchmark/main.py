@@ -32,6 +32,9 @@ def main():
     assert isinstance(repeat, bool), f"Error! {repeat=} is not a bool"
     hpo = args.hpo
     assert isinstance(hpo, bool), f"Error! {hpo=} is not a bool"
+    
+    assert hpo is True or repeat is True, f"Error! either {repeat=} or {hpo=} must be True"
+
     config = parser.parse_path(path)
 
     config_init = parser.instantiate_classes(config)

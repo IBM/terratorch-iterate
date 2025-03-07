@@ -97,8 +97,8 @@ target-version = ["py310"]
 line-length = 88
 skip-string-normalization = true
 
-# [project.scripts]
-# terratorch = "benchmark.main:main"
+[project.scripts]
+iterate = "benchmark.main:main"
 # ray_benchmark = "benchmark.benchmark_ray:main"
 # repeat_experiments = "benchmark.main:main"
 

@@ -51,9 +51,20 @@ To do this it relies on a configuration file where the benchmark is defined. Thi
 
 See `benchmark_v2_template.yaml` in the git repo for an example.
 
-To run a benchmark, use `benchmark --config <benchmark_file>`.
+Besides the `--config` argument, terratorch-iterate also has two other arguments: 
+* if users type `--hpo` terratorch-iterate will optimize hyperparameters. Otherwise, it will rerun best experiment 
+* if users type `--repeat` terratorch-iterate will repeat the best experiment. Otherwise, terratorch-iterate will not rerun any experiment
 
-To run a benchmark over a ray cluster (which must be created before running), use `ray_benchmark --config <benchmark_file>`.
+If users want to optimize hyperparameters:
+```shell
+terratorch iterate --hpo --config <config-file>
+```
+
+If users want to rerun best experiment:
+```shell
+terratorch iterate --repeat --config <config-file>
+```
+
 
 To check the experiment results, use `mlflow ui --host $(hostname -f) --port <port> --backend-store-uri <storage_uri>` 
 
