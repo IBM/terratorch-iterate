@@ -81,6 +81,7 @@ n_trials: 2
 save_models: False
 storage_uri: /dccstor/geofm-finetuning/terratorch-iterate-test/
 ray_storage_path: /dccstor/geofm-finetuning/terratorch-iterate-test/ray_storage
+run_repetitions: 0
 optimization_space:
   batch_size:
       - 8
