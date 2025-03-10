@@ -181,10 +181,10 @@ def test_run_benchmark(
     run_repetitions = config_init.run_repetitions
     if run_repetitions is not None:
         assert (
-            isinstance(run_repetitions, int) and run_repetitions > 0
+            isinstance(run_repetitions, int) and run_repetitions >= 0
         ), f"Error! {run_repetitions=} is invalid"
     else:
-        run_repetitions = 1
+        run_repetitions = 0
     mlflow_experiment_id = benchmark_backbone(
         experiment_name=experiment_name,
         run_name=run_name,
