@@ -1,8 +1,12 @@
+import uuid
+import os
+from pathlib import Path
 from typing import Any, List
 from jsonargparse import ArgumentParser
 from benchmark.backbone_benchmark import benchmark_backbone
 from benchmark.benchmark_types import Defaults, Task
 from benchmark.repeat_best_experiment import rerun_best_from_backbone
+from benchmark.utils import get_logger
 
 
 def main():
@@ -32,8 +36,10 @@ def main():
     assert isinstance(repeat, bool), f"Error! {repeat=} is not a bool"
     hpo = args.hpo
     assert isinstance(hpo, bool), f"Error! {hpo=} is not a bool"
-    
-    assert hpo is True or repeat is True, f"Error! either {repeat=} or {hpo=} must be True"
+
+    assert (
+        hpo is True or repeat is True
+    ), f"Error! either {repeat=} or {hpo=} must be True"
 
     config = parser.parse_path(path)
 
@@ -64,8 +70,32 @@ def main():
     n_trials = config_init.n_trials
     assert isinstance(n_trials, int) and n_trials > 0, f"Error! {n_trials=} is invalid"
     run_repetitions = config_init.run_repetitions
+
+    parent_run_id = config_init.parent_run_id
+    assert isinstance(parent_run_id, str), f"Error! {parent_run_id=} is invalid"
+
+    output = config_init.output_path
+    if output is None:
+        storage_uri_path = Path(storage_uri)
+        assert (
+            storage_uri_path.exists() and storage_uri_path.is_dir()
+        ), f"Error! Unable to create new output_path based on storage_uri_path because the latter does not exist: {storage_uri_path}"
+        unique_id = uuid.uuid4().hex
+        output_path = storage_uri_path / f"{unique_id}_repeated_exp"
+        output_path.mkdir(parents=True, exist_ok=True)
+        output = str(output_path)
+
+    logger = config_init.logger
+    if logger is None:
+        storage_uri_path = Path(storage_uri)
+
+        logger = get_logger(log_folder=f"{str(storage_uri_path)}/job_logs")
+
     if repeat and not hpo:
         rerun_best_from_backbone(
+            logger=logger,
+            parent_run_id=parent_run_id,
+            output_path=str(output_path),
             defaults=defaults,
             tasks=tasks,
             experiment_name=experiment_name,
