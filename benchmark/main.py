@@ -1,3 +1,4 @@
+import logging
 import uuid
 import os
 from pathlib import Path
@@ -23,15 +24,16 @@ def main():
     parser.add_argument('--n_trials', type=int)  # to ignore model
     parser.add_argument('--run_repetitions', type=int)  # to ignore model
     parser.add_argument('--tasks', type=list[Task])
+    parser.add_argument("--parent_run_id", type=str)
+    parser.add_argument("--output_path", type=str)
+    parser.add_argument("--logger", type=str)
     parser.add_argument("--config", action="config")
     parser.add_argument("--hpo", help="optimize hyperparameters", action="store_true")
     parser.add_argument("--repeat", help="repeat best experiments", action="store_true")
 
     args = parser.parse_args()
-    print(args)
     paths: List[Any] = args.config
     path = paths[0]
-    print(f"args={args} path={path}")
     repeat = args.repeat
     assert isinstance(repeat, bool), f"Error! {repeat=} is not a bool"
     hpo = args.hpo
@@ -85,13 +87,16 @@ def main():
         output_path.mkdir(parents=True, exist_ok=True)
         output = str(output_path)
 
-    logger = config_init.logger
-    if logger is None:
+    logger_path = config_init.logger
+    if logger_path is None:
         storage_uri_path = Path(storage_uri)
 
         logger = get_logger(log_folder=f"{str(storage_uri_path.parents[0])}/job_logs")
-
+    else:
+        logging.config.fileConfig(fname=logger_path, disable_existing_loggers=False)
+        logger = logging.getLogger("terratorch-iterate")
     if repeat and not hpo:
+        logger.info("Rerun best experiments...")
         rerun_best_from_backbone(
             logger=logger,
             parent_run_id=parent_run_id,
