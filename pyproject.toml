@@ -38,8 +38,8 @@ dependencies = [
 "click",
 # optional dependencies that can be opted in by apps.
 "torchvision>=0.17.0",
-"terratorch @ git+https://github.com/IBM/terratorch@92bd85a16cb7301d90f6b674d32aadfba83b079e", 
-
+"terratorch @ git+https://github.com/leotizzei/terratorch.git", 
+# "terratorch",
 # requests>=2.32.0 because of this vulnerability https://github.com/psf/requests/security/advisories/GHSA-9wx4-h78v-vm56
 "requests>=2.32.0",
 # Jinja2 vulnerability issue https://github.com/pallets/jinja/security/advisories/GHSA-h75v-3vvj-5mfj
@@ -98,9 +98,9 @@ line-length = 88
 skip-string-normalization = true
 
 [project.scripts]
-benchmark = "benchmark.backbone_benchmark:main"
-ray_benchmark = "benchmark.benchmark_ray:main"
-repeat_experiments = "benchmark.repeat_best_experiment:main"
+iterate = "benchmark.main:main"
+# ray_benchmark = "benchmark.benchmark_ray:main"
+# repeat_experiments = "benchmark.main:main"
 
 
 [tool.isort]
