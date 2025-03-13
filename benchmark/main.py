@@ -1,6 +1,5 @@
 import logging
 import uuid
-import os
 from pathlib import Path
 from typing import Any, List
 from jsonargparse import ArgumentParser
