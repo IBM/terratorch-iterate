@@ -2,4 +2,6 @@
 # for more details.
 require:
   members: false
-
+allowRemediationCommits:
+  individual: true
+  thirdParty: true
