@@ -10,7 +10,7 @@ from benchmark.utils import get_logger
 
 
 def main():
-    print(f"Running terratorch-iterate...")
+    print("Running terratorch-iterate...")
     parser = ArgumentParser()
 
     parser.add_argument('--defaults', type=Defaults)  # to ignore model

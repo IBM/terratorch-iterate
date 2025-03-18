@@ -12,8 +12,10 @@ from matplotlib import pyplot as plt
 from ast import literal_eval
 import optuna
 from benchmark.benchmark_types import Task
+
 try:
     from geobench import plot_tools
+
     GEOBENCH_INSTALLED = True
 except ImportError:
     GEOBENCH_INSTALLED = False

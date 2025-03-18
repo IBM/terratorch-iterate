@@ -1,6 +1,7 @@
 """
 This module defines all the types expected at input. Used for type checking by jsonargparse.
 """
+
 import copy
 import enum
 from dataclasses import dataclass, field, replace
@@ -75,13 +76,16 @@ class ParameterBounds:
         if not isinstance(self.type, ParameterTypeEnum):
             self.type = ParameterTypeEnum(self.type)
 
-optimization_space_type = dict[str, Union[list, ParameterBounds, 'optimization_space_type']]
+
+optimization_space_type = dict[
+    str, Union[list, ParameterBounds, 'optimization_space_type']
+]
 
 
 @dataclass
 class Defaults:
     """
-    Default parameters set for each of the tasks. 
+    Default parameters set for each of the tasks.
 
     These parameters will be combined with task specific ones to form the final parameters for the Terratorch training.
 
@@ -126,10 +130,12 @@ class Task:
     optimization_except: set[str] = field(default_factory=set)
     max_run_duration: str | None = None
 
+
 @dataclass
 class TrainingSpec:
     task: Task
     trainer_args: dict[str, Any] = field(default_factory=dict)
+
 
 def recursive_merge(first_dict: dict[str, Any], second_dict: dict[str, Any]):
     # consider using deepmerge instead of this
@@ -143,6 +149,7 @@ def recursive_merge(first_dict: dict[str, Any], second_dict: dict[str, Any]):
             # if it is not further nested, just replace the value
             else:
                 first_dict[key] = val
+
 
 def combine_with_defaults(task: Task, defaults: Defaults) -> TrainingSpec:
     terratorch_task = copy.deepcopy(defaults.terratorch_task)

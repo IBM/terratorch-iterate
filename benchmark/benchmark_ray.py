@@ -34,8 +34,8 @@ def benchmark_backbone_on_task(
     optimization_space: optimization_space_type | None = None,
     n_trials: int = 1,
     save_models: bool = False,
-    backbone_import: str|None = None,
-    searcher: SearchAlgorithm | None = None
+    backbone_import: str | None = None,
+    searcher: SearchAlgorithm | None = None,
 ) -> dict:
     if not searcher:
         raise ValueError("Searcher must not be None")
@@ -57,11 +57,13 @@ def benchmark_backbone_on_task(
             save_models,
             n_trials,
             backbone_import=backbone_import,
-            searcher=searcher
+            searcher=searcher,
         )
 
         mlflow.log_table(
-            results.get_dataframe(), f"results_{run.info.run_name}.json", run.info.run_id
+            results.get_dataframe(),
+            f"results_{run.info.run_name}.json",
+            run.info.run_id,
         )
         if results.get_best_result().metrics is None:
             raise Exception("Best result metrics were none")
@@ -70,7 +72,8 @@ def benchmark_backbone_on_task(
 
         mlflow.log_params(results.get_best_result().config)
         mlflow.log_metric(
-            f"best_{training_spec.task.metric}", results.get_best_result().metrics[training_spec.task.metric]
+            f"best_{training_spec.task.metric}",
+            results.get_best_result().metrics[training_spec.task.metric],
         )
         return {
             "best_result": results.get_best_result().metrics[training_spec.task.metric],
@@ -88,7 +91,7 @@ def remote_fit(
     experiment_name: str,
     parent_run_id: str,
     save_models: bool,
-    backbone_import: str | None
+    backbone_import: str | None,
 ) -> float:
     mlflow.set_tracking_uri(storage_uri)
     mlflow.set_experiment(experiment_name)
@@ -160,7 +163,9 @@ def benchmark_backbone(
     table_columns = ["Task", "Metric", "Best Score", "Hyperparameters"]
     table_entries = []
 
-    with mlflow.start_run(run_name=run_name, run_id=run_id, description=description) as run:
+    with mlflow.start_run(
+        run_name=run_name, run_id=run_id, description=description
+    ) as run:
 
         if optimization_space is None:
             # no hparams, parallelize over tasks
@@ -180,7 +185,7 @@ def benchmark_backbone(
                         experiment_name,
                         run.info.run_id,
                         save_models,
-                        backbone_import
+                        backbone_import,
                     )
                 )
             results = ray.get(ray_tasks)
@@ -217,7 +222,7 @@ def benchmark_backbone(
                         n_trials=n_trials,
                         save_models=save_models,
                         backbone_import=backbone_import,
-                        searcher=searcher
+                        searcher=searcher,
                     )
                 )
 

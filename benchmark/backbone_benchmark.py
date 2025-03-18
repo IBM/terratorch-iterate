@@ -378,5 +378,3 @@ def benchmark_backbone(
         )
 
     return experiment_id
-
-

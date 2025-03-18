@@ -144,7 +144,10 @@ def inject_hparams(training_spec: TrainingSpec, config: dict):
     )
     return training_spec_with_generated_hparams
 
-def get_default_callbacks(early_stop_patience: int | None, max_run_duration: str | None) -> list[Callback]:
+
+def get_default_callbacks(
+    early_stop_patience: int | None, max_run_duration: str | None
+) -> list[Callback]:
     default_callbacks: list[Callback] = [
         LearningRateMonitor(logging_interval="epoch"),
     ]
@@ -153,10 +156,9 @@ def get_default_callbacks(early_stop_patience: int | None, max_run_duration: str
             EarlyStopping("val/loss", patience=early_stop_patience)
         )
     if max_run_duration is not None:
-        default_callbacks.append(
-            Timer(duration=max_run_duration)
-        )
+        default_callbacks.append(Timer(duration=max_run_duration))
     return default_callbacks
+
 
 def generate_parameters(
     parameter_picker: ParameterPicker,
@@ -231,7 +233,8 @@ def _generate_parameters(
                 raise Exception(
                     "Leaves of optimization space must be lists or ParameterBounds"
                 )
-            
+
+
 ###########################################
 ########### SINGLE NODE - OPTUNA ##########
 ###########################################
@@ -318,7 +321,6 @@ def launch_training(
         return series_val_metrics[(metric, best_step)]
 
 
-
 def fit_model(
     training_spec: TrainingSpec,
     lightning_task_class: valid_task_types,
@@ -345,7 +347,9 @@ def fit_model(
         warnings.warn(
             "Callbacks passed to trainer. Make sure these are stateless, as they will not be reinitialized for each task!"
         )
-    default_callbacks: list[Callback] = get_default_callbacks(task.early_stop_patience, task.max_run_duration)
+    default_callbacks: list[Callback] = get_default_callbacks(
+        task.early_stop_patience, task.max_run_duration
+    )
 
     if task.early_prune and trial is not None:
         default_callbacks.append(
@@ -363,9 +367,13 @@ def fit_model(
             ModelCheckpoint(monitor=task.metric, mode=task.direction)
         )
     if "enable_checkpointing" in training_spec_copy.trainer_args:
-        warnings.warn(f"enable_checkpointing found. Will be overwritten to the value of save_models {save_models}")
+        warnings.warn(
+            f"enable_checkpointing found. Will be overwritten to the value of save_models {save_models}"
+        )
     training_spec_copy.trainer_args["enable_checkpointing"] = save_models
-    training_spec_copy.trainer_args["enable_progress_bar"] = training_spec_copy.trainer_args.get("enable_progress_bar", True)
+    training_spec_copy.trainer_args["enable_progress_bar"] = (
+        training_spec_copy.trainer_args.get("enable_progress_bar", True)
+    )
     # get callbacks (set to empty list if none defined) and extend with default ones
     training_spec_copy.trainer_args.setdefault("callbacks", []).extend(
         default_callbacks
@@ -373,19 +381,22 @@ def fit_model(
 
     trainer = Trainer(**training_spec_copy.trainer_args)
 
-    return launch_training(
-        trainer,
-        lightning_task,
-        task.datamodule,
-        run_name,
-        experiment_name,
+    return (
+        launch_training(
+            trainer,
+            lightning_task,
+            task.datamodule,
+            run_name,
+            experiment_name,
+            task.metric,
+            storage_uri,
+            parent_run_id,
+            task.direction,
+            test_models=test_models,
+            delete_models_after_testing=delete_models_after_testing,
+        ),
         task.metric,
-        storage_uri,
-        parent_run_id,
-        task.direction,
-        test_models=test_models,
-        delete_models_after_testing=delete_models_after_testing,
-    ), task.metric
+    )
 
 
 def fit_model_with_hparams(
@@ -415,7 +426,9 @@ def fit_model_with_hparams(
         ignore_keys=task.optimization_except,
     )
 
-    training_spec_with_generated_hparams = inject_hparams(training_spec, current_hparams)
+    training_spec_with_generated_hparams = inject_hparams(
+        training_spec, current_hparams
+    )
     run_name = f"{run_name}_{trial.number}"
     return fit_model(
         training_spec_with_generated_hparams,
@@ -427,7 +440,9 @@ def fit_model_with_hparams(
         trial,
         save_models=save_models,
         test_models=test_models,
-    )[0]  # return only the metric value for optuna
+    )[
+        0
+    ]  # return only the metric value for optuna
 
 
 ###########################################
@@ -447,7 +462,7 @@ def ray_tune_model(
     backbone_import: str | None = None,
     searcher: Searcher | SearchAlgorithm | None = None,
 ) -> tune.ResultGrid:
-    
+
     if not searcher:
         raise ValueError("searcher must be specified")
     trainable = tune.with_parameters(
@@ -538,13 +553,15 @@ def ray_tune_model(
                 tune.logger.JsonLoggerCallback(),
                 # RayLogArtifactsMlFlowCallback(),
             ],
-            checkpoint_config=CheckpointConfig(
-                num_to_keep=1,
-                checkpoint_score_attribute=task.metric,
-                checkpoint_score_order=task.direction,
-            )
-            if save_models
-            else None,
+            checkpoint_config=(
+                CheckpointConfig(
+                    num_to_keep=1,
+                    checkpoint_score_attribute=task.metric,
+                    checkpoint_score_order=task.direction,
+                )
+                if save_models
+                else None
+            ),
             # stop={"training_iteration": training_spec.trainer_args["max_epochs"]},
         ),
         param_space=current_hparams,
@@ -552,10 +569,12 @@ def ray_tune_model(
     results = tuner.fit()
     return results
 
+
 def _generate_random_name(task_name: str):
     # needed since the random names from mlflow are affected by the seed
     # so they are always the same
     return f"{task_name}_{uuid.uuid4().hex[:8]}"
+
 
 def ray_fit_model(
     config: dict,
@@ -575,7 +594,7 @@ def ray_fit_model(
         target_util=0.07, delay_s=10, retry=50
     )  # sometimes process needs some time to release GPU
 
-    trial_storage: StorageContext = config.pop("trial_storage", None)    
+    trial_storage: StorageContext = config.pop("trial_storage", None)
 
     training_spec_with_generated_hparams = inject_hparams(training_spec, config)
     task = training_spec_with_generated_hparams.task
@@ -592,16 +611,22 @@ def ray_fit_model(
             "Callbacks passed to trainer. Make sure these are stateless, as they will not be reinitialized for each task!"
         )
 
-    default_callbacks: list[Callback] = get_default_callbacks(task.early_stop_patience, task.max_run_duration)
-    default_callbacks.append(_TuneReportCallback(metrics=[task.metric], save_checkpoints=save_models))
+    default_callbacks: list[Callback] = get_default_callbacks(
+        task.early_stop_patience, task.max_run_duration
+    )
+    default_callbacks.append(
+        _TuneReportCallback(metrics=[task.metric], save_checkpoints=save_models)
+    )
 
     if "enable_checkpointing" in training_spec_with_generated_hparams.trainer_args:
-        warnings.warn("enable_checkpointing found. Will be overwritten to False as ray will be responsible for saving models.")
+        warnings.warn(
+            "enable_checkpointing found. Will be overwritten to False as ray will be responsible for saving models."
+        )
     training_spec_with_generated_hparams.trainer_args["enable_checkpointing"] = False
     if "enable_progress_bar" in training_spec_with_generated_hparams.trainer_args:
         warnings.warn("enable_progress_bar found. Will be overwritten to False")
     training_spec_with_generated_hparams.trainer_args["enable_progress_bar"] = False
-    
+
     # get callbacks (set to empty list if none defined) and extend with default ones
     training_spec_with_generated_hparams.trainer_args.setdefault(
         "callbacks", []
@@ -609,13 +634,15 @@ def ray_fit_model(
 
     trainer = Trainer(**training_spec_with_generated_hparams.trainer_args)
 
-
     # trainer = prepare_trainer(trainer)
 
     mlflow.set_tracking_uri(storage_uri)
     mlflow.set_experiment(experiment_name)
 
-    with mlflow.start_run(run_name=_generate_random_name(training_spec.task.name), parent_run_id=parent_run_id) as run:
+    with mlflow.start_run(
+        run_name=_generate_random_name(training_spec.task.name),
+        parent_run_id=parent_run_id,
+    ) as run:
         trainer.logger = MLFlowLogger(
             experiment_name=experiment_name,
             run_id=run.info.run_id,
