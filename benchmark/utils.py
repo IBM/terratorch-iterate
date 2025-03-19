@@ -730,54 +730,63 @@ def visualize_combined_results(
 
     try:
         # plot raw values
-        plot_tools.plot_per_dataset(
-            combined_results,
-            model_order=model_order,
-            plot_file_base_name=plot_file_base_name,
-            model_colors=model_colors,
-            metric="test metric",
-            sharey=False,
-            inner="points",
-            fig_size=fig_size,
-            n_legend_rows=n_legend_rows,
-        )
-        plt.savefig(
-            f"{save_folder}/plots/violin_{plot_file_base_name}_raw.png",
-            bbox_inches="tight",
-        )
-        plt.close()
-
-        # plot normalized, bootstrapped values values
-        normalizer = plot_tools.make_normalizer(
-            combined_results,
-            metrics=("test metric",),
-            benchmark_name=plot_file_base_name,
-        )
-        bootstrapped_iqm, normalized_combined_results = (
-            plot_tools.normalize_bootstrap_and_plot(
+        if GEOBENCH_INSTALLED is True:
+            plot_tools.plot_per_dataset(
                 combined_results,
-                plot_file_base_name=plot_file_base_name,
-                metric="test metric",
-                benchmark_name=plot_file_base_name,
                 model_order=model_order,
+                plot_file_base_name=plot_file_base_name,
                 model_colors=model_colors,
+                metric="test metric",
+                sharey=False,
+                inner="points",
                 fig_size=fig_size,
                 n_legend_rows=n_legend_rows,
             )
-        )
-        # dataset_name_map=dataset_name_map)
+            plt.savefig(
+                f"{save_folder}/plots/violin_{plot_file_base_name}_raw.png",
+                bbox_inches="tight",
+            )
+            plt.close()
 
-        plt.savefig(
-            f"{save_folder}/plots/violin_{plot_file_base_name}_normalized_bootstrapped.png",
-            bbox_inches="tight",
-        )
-        plt.close()
-        bootstrapped_iqm.to_csv(
-            f"{save_folder}/tables/{plot_file_base_name}_bootstrapped_iqm.csv"
-        )
-        combined_results.to_csv(
-            f"{save_folder}/tables/{plot_file_base_name}_normalized_combined_results.csv"
-        )
+            # plot normalized, bootstrapped values values
+            normalizer = plot_tools.make_normalizer(
+                combined_results,
+                metrics=("test metric",),
+                benchmark_name=plot_file_base_name,
+            )
+            bootstrapped_iqm, normalized_combined_results = (
+                plot_tools.normalize_bootstrap_and_plot(
+                    combined_results,
+                    plot_file_base_name=plot_file_base_name,
+                    metric="test metric",
+                    benchmark_name=plot_file_base_name,
+                    model_order=model_order,
+                    model_colors=model_colors,
+                    fig_size=fig_size,
+                    n_legend_rows=n_legend_rows,
+                )
+            )
+            # dataset_name_map=dataset_name_map)
+
+            plt.savefig(
+                f"{save_folder}/plots/violin_{plot_file_base_name}_normalized_bootstrapped.png",
+                bbox_inches="tight",
+            )
+            plt.close()
+            bootstrapped_iqm.to_csv(
+                f"{save_folder}/tables/{plot_file_base_name}_bootstrapped_iqm.csv"
+            )
+            combined_results.to_csv(
+                f"{save_folder}/tables/{plot_file_base_name}_normalized_combined_results.csv"
+            )
+        else:
+            msg = (
+                "Error! geobench has not been installed. Please install geobench: pip install "
+                "git+https://github.com/ServiceNow/geo-bench.git"
+                "@119dfdb6bb77582f9816e362b032455cfd6c52a7"
+            )
+            logger.error(msg=msg)
+            raise ImportError(msg=msg)
     except Exception as e:
         logger.info(f"could not visualize due to error: {e}")
 

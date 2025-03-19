@@ -60,11 +60,20 @@ If users want to optimize hyperparameters:
 terratorch iterate --hpo --config <config-file>
 ```
 
+For instance:
+```shell
+terratorch iterate --hpo --config configs/dofa_large_patch16_224_upernetdecoder_true_modified.yaml
+```
+
+
 If users want to rerun best experiment:
 ```shell
 terratorch iterate --repeat --config <config-file>
 ```
-
+For instance:
+```shell
+terratorch iterate --repeat --config configs/dofa_large_patch16_224_upernetdecoder_true_modified.yaml
+```
 
 To check the experiment results, use `mlflow ui --host $(hostname -f) --port <port> --backend-store-uri <storage_uri>` 
 
