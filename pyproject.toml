@@ -72,7 +72,8 @@ dependencies = [
 "asyncio",
 "opencv-python-headless",
 "configspace",
-"optuna-integration"
+"optuna-integration",
+"seaborn"
 ]
 
 [project.optional-dependencies]
