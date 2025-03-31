@@ -4,7 +4,7 @@
 # - setup.py discouraged; minimal stub included only for compatibility with legacy tools
 
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools >= 77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
@@ -14,7 +14,7 @@ include = ["benchmark*"]
 
 name = "terratorch-iterate"
 version = "0.1.0"
-description = "A tool for benchmarking and hpo"
+description = "A terratorch's plugin for benchmarking and hyperparameter optmization"
 authors = [
       { name = "Carlos Gomes"},
       { name = "Naomi Simumba"},
@@ -35,9 +35,6 @@ classifiers = [
 readme = "README.md"
 
 dependencies = [
-"click",
-# optional dependencies that can be opted in by apps.
-"torchvision>=0.17.0",
 # terratorch versions before 1.0.0 do not support call 'terratorch iterate'
 "terratorch>=0.99.9post1", 
 # "terratorch",
@@ -76,6 +73,10 @@ dependencies = [
 "seaborn"
 ]
 
+[project.urls]
+Homepage = "https://github.com/IBM/terratorch-iterate"
+Issues = "https://github.com/IBM/terratorch-iterate/issues"
+
 [project.optional-dependencies]
 dev = [
   "black",
@@ -93,7 +94,7 @@ test = [
 ]
 
 utility = [
-  "geobench @ git+https://github.com/ServiceNow/geo-bench.git@119dfdb6bb77582f9816e362b032455cfd6c52a7"
+  "geobench"
 ]
 
 [tool.black]

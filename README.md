@@ -13,7 +13,7 @@ We recommend using python 3.10, 3.11 or 3.12 and also using a virtual environmen
 ### Package installation
 
 ```sh
-pip install "git+https://github.com/IBM/terratorch-iterate"
+pip install terratorch-iterate
 ```
 
 ### Suggested setup for development
@@ -21,6 +21,9 @@ pip install "git+https://github.com/IBM/terratorch-iterate"
 ```sh
 pip install --upgrade pip setuptools wheel
 pip install -e .
+pip install -e ".[dev]"
+pip install -e ".[test]"
+pip install -e ".[utilities]"
 ```
 
 ## Usage
