@@ -353,6 +353,7 @@ def rerun_best_from_backbone(
                     )
                     # check if run with name finished successfully
                     logger.info(f"score: {score}")
+                    # TODO improve this sleep command - try to get a better estimate than this
                     time.sleep(3600 * 2)
                     seed_run_data = mlflow.search_runs(
                         experiment_ids=[experiment_info.experiment_id],

@@ -74,7 +74,7 @@ def main():
 
     parent_run_id = config_init.parent_run_id
     if parent_run_id is not None:
-        assert isinstance(parent_run_id, str), f"Error! {parent_run_id=} is invalid"
+        assert isinstance(parent_run_id, str), f"Error! {parent_run_id=} is not a str"
 
     output = config_init.output_path
     if output is None:
