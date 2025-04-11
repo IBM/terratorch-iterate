@@ -6,19 +6,12 @@ import logging
 from pathlib import Path
 import pandas as pd
 import numpy as np
-import datetime
 import seaborn as sns
 from matplotlib import pyplot as plt
 from ast import literal_eval
 import optuna
 from benchmark.benchmark_types import Task
 from benchmark import plot_tools
-try:
-    from geobench import plot_tools
-
-    GEOBENCH_INSTALLED = True
-except ImportError:
-    GEOBENCH_INSTALLED = False
 
 from mlflow.entities.experiment import Experiment
 
@@ -43,7 +36,7 @@ REPEATED_SEEDS_DEFAULT = 10
 DATA_PARTITIONS = {
     "default": 100,
     "1.00x_train": 100,
-    "0.20x_train": 50,
+    "0.50x_train": 50,
     "0.20x_train": 20,
     "0.10x_train": 10,
     "0.01x_train": 1,
@@ -587,10 +580,9 @@ def check_existing_experiments(
     storage_uri: str,
     experiment_name: str,
     exp_parent_run_name: str,
-    backbone: str,
     task_names: list,
     n_trials: int,
-):
+) -> Dict[str, Any]:
     """
     checks if experiment has been completed (i.e. both task run and nested individual runs are complete)
     Args:
@@ -598,7 +590,6 @@ def check_existing_experiments(
         storage_uri: folder containing mlflow log data
         experiment_name: name of experiment
         exp_parent_run_name: run name of the top level experiment run
-        backbone: name of backbone being used in experiment
         task_names: list of task names that should be completed
         n_trials: number of trials (runs) expected in HPO of each task
     Returns:
@@ -709,7 +700,7 @@ def visualize_combined_results(
         logger: logging.RootLogger to save logs to file
         plot_file_base_name: unique string to be added to all file names
     """
-    logger.info(f"\nStarting to visualize")    
+    logger.info("Starting to visualize")
     save_folder = Path(storage_uri).parents[0] / "visualizations"
     tables_folder = save_folder / "tables"
     plots_folder = save_folder / "plots"
@@ -750,7 +741,7 @@ def visualize_combined_results(
         plt.close()
 
         # plot normalized, bootstrapped values values
-        normalizer = plot_tools.make_normalizer(
+        plot_tools.make_normalizer(
             combined_results,
             metrics=("test metric",),
             benchmark_name=plot_file_base_name,
@@ -770,7 +761,10 @@ def visualize_combined_results(
         # dataset_name_map=dataset_name_map)
 
         plt.savefig(
-            str(plots_folder / f"violin_{plot_file_base_name}_normalized_bootstrapped.png"),
+            str(
+                plots_folder
+                / f"violin_{plot_file_base_name}_normalized_bootstrapped.png"
+            ),
             bbox_inches="tight",
         )
         plt.close()
@@ -778,8 +772,10 @@ def visualize_combined_results(
             str(tables_folder / f"{plot_file_base_name}_bootstrapped_iqm.csv")
         )
         combined_results.to_csv(
-            str(tables_folder / f"{plot_file_base_name}_normalized_combined_results.csv")
-        )            
+            str(
+                tables_folder / f"{plot_file_base_name}_normalized_combined_results.csv"
+            )
+        )
     except Exception as e:
         logger.info(f"could not visualize due to error: {e}")
 

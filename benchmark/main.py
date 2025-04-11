@@ -54,7 +54,7 @@ def main():
     # validate defaults
     defaults = config_init.defaults
     assert isinstance(defaults, Defaults), f"Error! {defaults=} is not a Defaults"
-   
+
     tasks = config_init.tasks
     assert isinstance(tasks, list), f"Error! {tasks=} is not a list"
     for t in tasks:
@@ -70,11 +70,13 @@ def main():
     assert isinstance(
         optimization_space, dict
     ), f"Error! {optimization_space=} is not a dict"
-    
+
     # ray_storage_path is optional
     ray_storage_path = config_init.ray_storage_path
     if ray_storage_path is not None:
-        assert isinstance(ray_storage_path, str), f"Error! {ray_storage_path=} is not a str"
+        assert isinstance(
+            ray_storage_path, str
+        ), f"Error! {ray_storage_path=} is not a str"
 
     n_trials = config_init.n_trials
     assert isinstance(n_trials, int) and n_trials > 0, f"Error! {n_trials=} is invalid"

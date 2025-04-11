@@ -235,9 +235,11 @@ def _generate_parameters(
                 )
 
 
-###########################################
-########### SINGLE NODE - OPTUNA ##########
-###########################################
+"""
+single node - optuna
+"""
+
+
 def launch_training(
     trainer: Trainer,
     task: BaseTask,
@@ -445,9 +447,9 @@ def fit_model_with_hparams(
     ]  # return only the metric value for optuna
 
 
-###########################################
-########### MULTI NODE - RAY ##############
-###########################################
+"""
+multi node - ray
+"""
 
 
 def ray_tune_model(

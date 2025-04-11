@@ -14,6 +14,7 @@ from scipy.stats import trim_mean
 sns.set_style("dark", {"grid.color": "0.98", "axes.facecolor": "(0.95, 0.95, 0.97)"})
 GEO_BENCH_DIR = "geobench"
 
+
 def biqm(scores):
     """Return a bootstram sample of iqm."""
     b_scores = np.random.choice(scores, size=len(scores), replace=True)
@@ -26,7 +27,10 @@ def iqm(scores):
 
 
 def bootstrap_iqm(
-    df, group_keys=("model", "dataset", "partition name"), metric="test_metric", repeat=100
+    df,
+    group_keys=("model", "dataset", "partition name"),
+    metric="test_metric",
+    repeat=100,
 ):
     """Boostram of seeds for all model and all datasets to comput iqm score distribution."""
     df_list = []
@@ -52,7 +56,9 @@ def bootstrap_iqm_aggregate(df, metric="test_metric", repeat=100):
     return new_df
 
 
-def average_seeds(df, group_keys=("model", "dataset", "partition name"), metric="test metric"):
+def average_seeds(
+    df, group_keys=("model", "dataset", "partition name"), metric="test metric"
+):
     """Average seeds for all model and all datasets."""
     df_avg = df.groupby(list(group_keys))[metric].mean()
     df_avg = df_avg.unstack(level="dataset")
@@ -64,7 +70,8 @@ def average_seeds(df, group_keys=("model", "dataset", "partition name"), metric=
 def extract_1x_data(df_all):
     """Extract only resutls trained on 100% of the data"""
     return df_all[
-        (df_all["partition name"] == "1.00x train") | (df_all["partition name"] == "default")
+        (df_all["partition name"] == "1.00x train")
+        | (df_all["partition name"] == "default")
     ].copy()
 
 
@@ -129,12 +136,16 @@ class Normalizer:
 
     def from_row(self, row, scale_only=False):
         """Normalize from row."""
-        return [self(ds_name, val, scale_only=scale_only) for ds_name, val in row.items()]
+        return [
+            self(ds_name, val, scale_only=scale_only) for ds_name, val in row.items()
+        ]
 
     def normalize_data_frame(self, df, metric):
         """Normalize the entire dataframe."""
         new_metric = f"normalized {metric}"
-        df[new_metric] = df.apply(lambda row: self.__call__(row["dataset"], row[metric]), axis=1)
+        df[new_metric] = df.apply(
+            lambda row: self.__call__(row["dataset"], row[metric]), axis=1
+        )
         return new_metric
 
     def save(self, benchmark_name):
@@ -232,7 +243,9 @@ def plot_per_dataset(
             ax.get_legend().remove()
         else:
             ncols = int(np.ceil(len(model_order) / n_legend_rows))
-            sns.move_legend(ax, loc="lower center", bbox_to_anchor=(0.5, 1), ncol=ncols, title="")
+            sns.move_legend(
+                ax, loc="lower center", bbox_to_anchor=(0.5, 1), ncol=ncols, title=""
+            )
 
         if dataset != datasets[0]:
             ax.set(ylabel=None)

@@ -52,7 +52,7 @@ def remote_fit(
     with mlflow.start_run(
         run_name=f"{lightning_task_class.name}_{seed}",
         nested=True,
-    ) as run:
+    ):
 
         training_spec_copy = copy.deepcopy(training_spec)
         training_spec_with_generated_hparams = inject_hparams(

@@ -209,7 +209,7 @@ def benchmark_backbone(
     base = Path(storage_uri).parents[0]
     PATH_TO_JOB_TRACKING = base / "job_progress_tracking"
     REPEATED_EXP_FOLDER = base / "repeated_exp_output_mlflow"
-    
+
     logger = get_logger(log_folder=str(base / "job_logs"))
     if not os.path.exists(REPEATED_EXP_FOLDER):
         os.makedirs(REPEATED_EXP_FOLDER)
@@ -231,7 +231,6 @@ def benchmark_backbone(
     table_columns = ["Task", "Metric", "Best Score", "Hyperparameters"]
     table_entries = []
 
-    backbone = defaults.terratorch_task["model_args"]["backbone"]
     task_names = [task.name for task in tasks]
     run_name = f"top_run_{experiment_name}" if run_name is None else run_name
 
@@ -241,13 +240,12 @@ def benchmark_backbone(
     if continue_existing_experiment:
         # find status of existing runs, and delete incomplete runs except one with the most complete tasks
         existing_experiments = check_existing_experiments(
-            logger,
-            storage_uri,
-            experiment_name,
-            run_name,
-            backbone,
-            task_names,
-            n_trials,
+            logger=logger,
+            storage_uri=storage_uri,
+            experiment_name=experiment_name,
+            exp_parent_run_name=run_name,
+            task_names=task_names,
+            n_trials=n_trials,
         )
         if existing_experiments["no_existing_runs"]:
             logger.info("\nStarting new experiment from scratch")
@@ -266,14 +264,14 @@ def benchmark_backbone(
                 run_id = existing_experiments["finished_run"]
 
             # get previously completed tasks
-            completed_task_run_names, all_tasks_finished, task_run_to_id_match = (
+            completed_task_run_names, _, task_run_to_id_match = (
                 check_existing_task_parent_runs(
                     logger, run_id, storage_uri, experiment_name, n_trials
                 )
             )
 
-            table_entries_filename = (
-                str(PATH_TO_JOB_TRACKING / f"{experiment_name}-{run_id}_table_entries.pkl")
+            table_entries_filename = str(
+                PATH_TO_JOB_TRACKING / f"{experiment_name}-{run_id}_table_entries.pkl"
             )
             if os.path.exists(table_entries_filename):
                 with open(table_entries_filename, 'rb') as handle:
@@ -316,7 +314,10 @@ def benchmark_backbone(
                     test_models=test_models,
                 )
                 table_entries.append([task.name, metric_name, best_value, hparams])
-                table_entries_filename = str(PATH_TO_JOB_TRACKING / f"{experiment_name}-{run.info.run_id}_table_entries.pkl")
+                table_entries_filename = str(
+                    PATH_TO_JOB_TRACKING
+                    / f"{experiment_name}-{run.info.run_id}_table_entries.pkl"
+                )
                 with open(table_entries_filename, 'wb') as handle:
                     pickle.dump(table_entries, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
@@ -334,13 +335,12 @@ def benchmark_backbone(
 
         # check completion of HPO for all tasks before proceeding to next stage
         existing_experiments = check_existing_experiments(
-            logger,
-            storage_uri,
-            experiment_name,
-            run_name,
-            backbone,
-            task_names,
-            n_trials,
+            logger=logger,
+            storage_uri=storage_uri,
+            experiment_name=experiment_name,
+            exp_parent_run_name=run_name,
+            task_names=task_names,
+            n_trials=n_trials,
         )
         if existing_experiments["finished_run"] is not None:
             finished_run_id = existing_experiments["finished_run"]
@@ -355,8 +355,8 @@ def benchmark_backbone(
                 Experiment name: {experiment_name} \n\
                 "
     )
-    path_to_final_results = (
-        str(REPEATED_EXP_FOLDER / f"{experiment_name}_repeated_exp_mlflow.csv")
+    path_to_final_results = str(
+        REPEATED_EXP_FOLDER / f"{experiment_name}_repeated_exp_mlflow.csv"
     )
 
     if run_repetitions >= 1:
