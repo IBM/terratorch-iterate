@@ -51,12 +51,17 @@ def main():
     run_name = config_init.run_name
     if run_name is not None:
         assert isinstance(run_name, str), f"Error! {run_name=} is not a str"
+    # validate defaults
+    defaults = config_init.defaults
+    assert isinstance(defaults, Defaults), f"Error! {defaults=} is not a Defaults"
+   
     tasks = config_init.tasks
     assert isinstance(tasks, list), f"Error! {tasks=} is not a list"
     for t in tasks:
         assert isinstance(t, Task), f"Error! {t=} is not a Task"
-    defaults = config_init.defaults
-    assert isinstance(defaults, Defaults), f"Error! {defaults=} is not a Defaults"
+        # if there is not specific terratorch_task specified, then use default terratorch_task
+        if t.terratorch_task is None:
+            t.terratorch_task = defaults.terratorch_task
     # defaults.trainer_args["max_epochs"] = 5
     storage_uri = config_init.storage_uri
     assert isinstance(storage_uri, str), f"Error! {storage_uri=} is not a str"
