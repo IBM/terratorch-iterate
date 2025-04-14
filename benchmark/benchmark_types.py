@@ -5,7 +5,7 @@ This module defines all the types expected at input. Used for type checking by j
 import copy
 import enum
 from dataclasses import dataclass, field, replace
-from typing import Any, Union
+from typing import Any, Optional, Union
 
 from terratorch.tasks import (
     ClassificationTask,
@@ -121,9 +121,9 @@ class Task:
 
     name: str
     type: TaskTypeEnum
-    terratorch_task: dict[str, Any]
     datamodule: BaseDataModule
     direction: str
+    terratorch_task: Optional[dict[str, Any]] = None
     metric: str = "val/loss"
     early_prune: bool = False
     early_stop_patience: int | None = None
