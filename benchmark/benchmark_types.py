@@ -2,6 +2,7 @@
 This module defines all the types expected at input. Used for type checking by jsonargparse.
 """
 
+from ast import Dict
 import copy
 import enum
 from dataclasses import dataclass, field, replace
@@ -148,7 +149,11 @@ def combine_with_defaults(task: Task, defaults: Defaults) -> TrainingSpec:
     Returns:
         TrainingSpec: TrainingSpec object containing combined parameters.
     """
-    terratorch_task = copy.deepcopy(defaults.terratorch_task)
+    terratorch_task: Optional[Dict[str, Any]] = copy.deepcopy(defaults.terratorch_task)
+    if terratorch_task is None:
+        terratorch_task = {}
+    if task.terratorch_task is None:
+        task.terratorch_task = {}
     # merge task specific args with default args
     terratorch_task = terratorch_task | task.terratorch_task
     task_with_defaults = replace(task, terratorch_task=terratorch_task)
