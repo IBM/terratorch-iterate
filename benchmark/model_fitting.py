@@ -60,6 +60,7 @@ from benchmark.benchmark_types import (
     ParameterTypeEnum,
     TrainingSpec,
     optimization_space_type,
+    recursive_merge,
     valid_task_types,
 )
 
@@ -137,9 +138,7 @@ def inject_hparams(training_spec: TrainingSpec, config: dict):
     if terratorch_task_with_generated_hparams is None:
         terratorch_task_with_generated_hparams = {}
 
-    terratorch_task_with_generated_hparams = (
-        terratorch_task_with_generated_hparams | config_without_batch_size
-    )
+    recursive_merge(terratorch_task_with_generated_hparams, config_without_batch_size)
     task_with_generated_hparams = dataclasses.replace(
         training_spec.task,
         terratorch_task=terratorch_task_with_generated_hparams,
@@ -349,8 +348,10 @@ def fit_model(
         PixelwiseRegressionTask,
     ]:
         task.terratorch_task["plot_on_val"] = False
-    assert isinstance(task.terratorch_task, dict), f"Error! Invalid type: {task.terratorch_task}"
-    
+    assert isinstance(
+        task.terratorch_task, dict
+    ), f"Error! Invalid type: {task.terratorch_task}"
+
     lightning_task = lightning_task_class(**task.terratorch_task)
 
     if len(training_spec.trainer_args.get("callbacks", [])) > 0:
