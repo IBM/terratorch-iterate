@@ -18,6 +18,8 @@ import ray
 from jsonargparse import CLI
 from lightning import Callback, Trainer
 from lightning.pytorch import seed_everything
+from lightning.pytorch.callbacks import ModelCheckpoint
+import shutil
 from tabulate import tabulate
 from terratorch.tasks import PixelwiseRegressionTask, SemanticSegmentationTask
 
@@ -117,6 +119,8 @@ def non_remote_fit(
     best_params: dict,
     seed: int,
     backbone_import: str | None = None,
+    save_models: bool = False,
+    report_on_best_val: bool = False,
 ) -> float | None:
     seed_everything(seed, workers=True)
     if backbone_import:
@@ -147,36 +151,54 @@ def non_remote_fit(
         default_callbacks: list[Callback] = get_default_callbacks(
             task.early_stop_patience, task.max_run_duration
         )
-        # get callbacks (set to empty list if none defined) and extend with default ones
-        training_spec_with_generated_hparams.trainer_args.setdefault(
-            "callbacks", []
-        ).extend(
-            default_callbacks
-        )  # type: ignore
-        if "enable_checkpointing" in training_spec_with_generated_hparams.trainer_args:
-            warnings.warn(
-                "enable_checkpointing found. Will be overwritten to False as ray will be responsible for saving models."
+        delete_models_after_testing = False
+
+        if report_on_best_val and not save_models:
+            # we need to save the models to be able to report results on best validation model
+            save_models = True
+            delete_models_after_testing = True
+
+        if save_models:
+            default_callbacks.append(
+                ModelCheckpoint(monitor=task.metric, mode=task.direction)
             )
-        training_spec_with_generated_hparams.trainer_args["enable_checkpointing"] = (
-            False
-        )
+
+        if "enable_checkpointing" in training_spec_with_generated_hparams.trainer_args:
+            warnings.warn(f"enable_checkpointing found. Will be overwritten to the value of save_models {save_models}")
+        training_spec_with_generated_hparams.trainer_args["enable_checkpointing"] = save_models
         if "enable_progress_bar" in training_spec_with_generated_hparams.trainer_args:
             warnings.warn("enable_progress_bar found. Will be overwritten to False")
         training_spec_with_generated_hparams.trainer_args["enable_progress_bar"] = False
-        trainer = Trainer(**training_spec_with_generated_hparams.trainer_args)
+        # get callbacks (set to empty list if none defined) and extend with default ones
+        training_spec_with_generated_hparams.trainer_args.setdefault("callbacks", []).extend(
+            default_callbacks
+        )  # type: ignore
 
+        trainer = Trainer(**training_spec_with_generated_hparams.trainer_args)
         trainer.logger = MLFlowLogger(
             experiment_name=experiment_name,
             run_id=run.info.run_id,
             save_dir=storage_uri,
-            log_model=True,
+            log_model=False,  # don't copy saved checkpoints to artifacts
         )
         try:
             trainer.fit(lightning_task, datamodule=task.datamodule)
+            ckpt_path = "best" if report_on_best_val else "last"
             metrics = trainer.test(
-                lightning_task, datamodule=task.datamodule, verbose=False
+                lightning_task, datamodule=task.datamodule, verbose=False, ckpt_path=ckpt_path
             )
             metrics = metrics[0]
+
+            if delete_models_after_testing:
+                # delete the checkpoints' folder in the run
+                ckpts_folder = os.path.join(
+                    trainer.logger.save_dir,   # mlflow root dir
+                    str(trainer.logger.name),  # experiment_id
+                    trainer.logger.version,    # run_id
+                    "checkpoints",
+                )
+                shutil.rmtree(ckpts_folder)
+
         except Exception as e:
             raise Exception(str(e))
         #        warnings.warn(str(e))
@@ -202,6 +224,7 @@ def rerun_best_from_backbone(
     n_trials: int = 1,
     ray_storage_path: str | None = None,
     save_models: bool = False,
+    report_on_best_val: bool = False,
     run_id: str | None = None,
     optimization_space: dict | None = None,
     description: str | None = None,
@@ -350,6 +373,8 @@ def rerun_best_from_backbone(
                         best_params=best_params,
                         seed=seed,
                         backbone_import=backbone_import,
+                        save_models=save_models,
+                        report_on_best_val=report_on_best_val,
                     )
                     # check if run with name finished successfully
                     logger.info(f"score: {score}")
