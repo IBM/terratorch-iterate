@@ -231,6 +231,7 @@ def benchmark_backbone(
     table_columns = ["Task", "Metric", "Best Score", "Hyperparameters"]
     table_entries = []
 
+    backbone: str = defaults.terratorch_task["model_args"]["backbone"]
     task_names = [task.name for task in tasks]
     run_name = f"top_run_{experiment_name}" if run_name is None else run_name
 
@@ -246,6 +247,7 @@ def benchmark_backbone(
             exp_parent_run_name=run_name,
             task_names=task_names,
             n_trials=n_trials,
+            backbone=backbone,
         )
         if existing_experiments["no_existing_runs"]:
             logger.info("\nStarting new experiment from scratch")
@@ -341,6 +343,7 @@ def benchmark_backbone(
             exp_parent_run_name=run_name,
             task_names=task_names,
             n_trials=n_trials,
+            backbone=backbone
         )
         if existing_experiments["finished_run"] is not None:
             finished_run_id = existing_experiments["finished_run"]

@@ -582,6 +582,7 @@ def check_existing_experiments(
     exp_parent_run_name: str,
     task_names: list,
     n_trials: int,
+    backbone: str
 ) -> Dict[str, Any]:
     """
     checks if experiment has been completed (i.e. both task run and nested individual runs are complete)
