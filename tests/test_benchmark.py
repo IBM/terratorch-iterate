@@ -221,11 +221,11 @@ def test_run_benchmark(
         mlflow_experiment_id=mlflow_experiment_id,
     )
 
+
 @pytest.mark.parametrize(
     "config, continue_existing_experiment, test_models",
     [
         ("configs/tests/benchmark_marida_l2a_terramind_base.yaml", False, False),
-        
     ],
 )
 def test_run_benchmark_no_specific_terratorch_task(
@@ -264,7 +264,7 @@ def test_run_benchmark_no_specific_terratorch_task(
         assert isinstance(t, Task), f"Error! {t=} is not a Task"
         if t.terratorch_task is not None:
             t.terratorch_task = None
-            
+
     defaults = config_init.defaults
     assert isinstance(defaults, Defaults), f"Error! {defaults=} is not a Defaults"
     # defaults.trainer_args["max_epochs"] = 5
