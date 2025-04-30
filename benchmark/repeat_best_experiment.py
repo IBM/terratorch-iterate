@@ -164,13 +164,19 @@ def non_remote_fit(
             )
 
         if "enable_checkpointing" in training_spec_with_generated_hparams.trainer_args:
-            warnings.warn(f"enable_checkpointing found. Will be overwritten to the value of save_models {save_models}")
-        training_spec_with_generated_hparams.trainer_args["enable_checkpointing"] = save_models
+            warnings.warn(
+                f"enable_checkpointing found. Will be overwritten to the value of save_models {save_models}"
+            )
+        training_spec_with_generated_hparams.trainer_args["enable_checkpointing"] = (
+            save_models
+        )
         if "enable_progress_bar" in training_spec_with_generated_hparams.trainer_args:
             warnings.warn("enable_progress_bar found. Will be overwritten to False")
         training_spec_with_generated_hparams.trainer_args["enable_progress_bar"] = False
         # get callbacks (set to empty list if none defined) and extend with default ones
-        training_spec_with_generated_hparams.trainer_args.setdefault("callbacks", []).extend(
+        training_spec_with_generated_hparams.trainer_args.setdefault(
+            "callbacks", []
+        ).extend(
             default_callbacks
         )  # type: ignore
 
@@ -185,16 +191,19 @@ def non_remote_fit(
             trainer.fit(lightning_task, datamodule=task.datamodule)
             ckpt_path = "best" if report_on_best_val else "last"
             metrics = trainer.test(
-                lightning_task, datamodule=task.datamodule, verbose=False, ckpt_path=ckpt_path
+                lightning_task,
+                datamodule=task.datamodule,
+                verbose=False,
+                ckpt_path=ckpt_path,
             )
             metrics = metrics[0]
 
             if delete_models_after_testing:
                 # delete the checkpoints' folder in the run
                 ckpts_folder = os.path.join(
-                    trainer.logger.save_dir,   # mlflow root dir
+                    trainer.logger.save_dir,  # mlflow root dir
                     str(trainer.logger.name),  # experiment_id
-                    trainer.logger.version,    # run_id
+                    trainer.logger.version,  # run_id
                     "checkpoints",
                 )
                 shutil.rmtree(ckpts_folder)
