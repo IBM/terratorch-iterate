@@ -6,7 +6,7 @@ from jsonargparse import ArgumentParser
 from benchmark.backbone_benchmark import benchmark_backbone
 from benchmark.benchmark_types import Defaults, Task
 from benchmark.repeat_best_experiment import rerun_best_from_backbone
-from benchmark.utils import get_logger
+from benchmark.utils import get_logger, import_custom_modules
 
 
 def main():
@@ -29,6 +29,7 @@ def main():
     parser.add_argument("--config", action="config")
     parser.add_argument("--hpo", help="optimize hyperparameters", action="store_true")
     parser.add_argument("--repeat", help="repeat best experiments", action="store_true")
+    parser.add_argument('--custom_modules_path', type=str) 
 
     args = parser.parse_args()
     paths: List[Any] = args.config
@@ -65,6 +66,14 @@ def main():
     # defaults.trainer_args["max_epochs"] = 5
     storage_uri = config_init.storage_uri
     assert isinstance(storage_uri, str), f"Error! {storage_uri=} is not a str"
+
+    #custom_modules_path is optional
+    custom_modules_path = config_init.custom_modules_path
+    if custom_modules_path is not None:
+        assert isinstance(
+            custom_modules_path, str
+        ), f"Error! {custom_modules_path=} is not a str"
+        import_custom_modules(custom_modules_path)
 
     optimization_space = config_init.optimization_space
     assert isinstance(
