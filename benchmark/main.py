@@ -90,21 +90,10 @@ def main():
     n_trials = config_init.n_trials
     assert isinstance(n_trials, int) and n_trials > 0, f"Error! {n_trials=} is invalid"
     run_repetitions = config_init.run_repetitions
-
+    print(run_repetitions)
     parent_run_id = config_init.parent_run_id
     if parent_run_id is not None:
         assert isinstance(parent_run_id, str), f"Error! {parent_run_id=} is not a str"
-
-    output = config_init.output_path
-    if output is None:
-        storage_uri_path = Path(storage_uri)
-        assert (
-            storage_uri_path.exists() and storage_uri_path.is_dir()
-        ), f"Error! Unable to create new output_path based on storage_uri_path because the latter does not exist: {storage_uri_path}"
-        unique_id = uuid.uuid4().hex
-        output_path = storage_uri_path.parents[0] / f"{unique_id}_repeated_exp"
-        output_path.mkdir(parents=True, exist_ok=True)
-        output = str(output_path)
 
     logger_path = config_init.logger
     if logger_path is None:
@@ -115,6 +104,18 @@ def main():
         logging.config.fileConfig(fname=logger_path, disable_existing_loggers=False)
         logger = logging.getLogger("terratorch-iterate")
     if repeat and not hpo:
+
+        output = config_init.output_path
+        if output is None:
+            storage_uri_path = Path(storage_uri)
+            assert (
+                storage_uri_path.exists() and storage_uri_path.is_dir()
+            ), f"Error! Unable to create new output_path based on storage_uri_path because the latter does not exist: {storage_uri_path}"
+            unique_id = uuid.uuid4().hex
+            output_path = storage_uri_path.parents[0] / f"{unique_id}_repeated_exp"
+            output_path.mkdir(parents=True, exist_ok=True)
+            output = str(output_path)
+
         logger.info("Rerun best experiments...")
         rerun_best_from_backbone(
             logger=logger,

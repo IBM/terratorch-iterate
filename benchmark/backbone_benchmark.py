@@ -133,7 +133,7 @@ def benchmark_backbone_on_task(
 
         tags = {
             "early_stop_patience": str(training_spec.task.early_stop_patience),
-            "partition_name": str(training_spec.task.datamodule.partition),
+            "partition_name": str(training_spec.task.datamodule.partition) if hasattr(training_spec.task.datamodule, 'partition') else 'default',
             "decoder": str(training_spec.task.terratorch_task["model_args"]["decoder"]),
             "backbone": str(
                 training_spec.task.terratorch_task["model_args"]["backbone"]
@@ -350,19 +350,20 @@ def benchmark_backbone(
         else:
             logger.info("HPO is not complete. Please re-run this experiment")
             raise RuntimeError
-
-    # run repeated experiments
-    logger.info(
-        f"HPO complete. Now running repeated experiments \n\
-                Parent run: {finished_run_id} \n\
-                Experiment name: {experiment_name} \n\
-                "
-    )
-    path_to_final_results = str(
-        REPEATED_EXP_FOLDER / f"{experiment_name}_repeated_exp_mlflow.csv"
-    )
-
+    print(run_repetitions)
     if run_repetitions >= 1:
+
+        # run repeated experiments
+        logger.info(
+            f"HPO complete. Now running repeated experiments \n\
+                    Parent run: {finished_run_id} \n\
+                    Experiment name: {experiment_name} \n\
+                    "
+        )
+        path_to_final_results = str(
+            REPEATED_EXP_FOLDER / f"{experiment_name}_repeated_exp_mlflow.csv"
+        )
+
         rerun_best_from_backbone(
             logger=logger,
             parent_run_id=finished_run_id,

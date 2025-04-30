@@ -37,7 +37,7 @@ from benchmark.model_fitting import (
     inject_hparams,
     valid_task_types,
 )
-
+import pdb
 
 @ray.remote(num_cpus=8, num_gpus=1)
 def remote_fit(
@@ -253,7 +253,7 @@ def rerun_best_from_backbone(
         raise Exception(
             f"output_path must be absolute. Consider using $(pwd)/{output_path}."
         )
-    if tmp_dir is None:
+    if (tmp_dir is None) & (use_ray == True):
         raise Exception("tmp_dir must be specified for runs with ray.")
 
     if use_ray:
