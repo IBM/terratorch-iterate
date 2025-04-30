@@ -12,6 +12,7 @@ from ast import literal_eval
 import optuna
 from benchmark.benchmark_types import Task
 from benchmark import plot_tools
+import importlib.util
 
 from mlflow.entities.experiment import Experiment
 
@@ -801,6 +802,31 @@ def get_logger(log_level="INFO", log_folder="./experiment_logs") -> logging.Root
     logger.addHandler(handler)
     logging.basicConfig(level=logging.CRITICAL)
     return logger
+
+
+def import_custom_modules(custom_modules_path: str | Path | None = None) -> None:
+
+    if custom_modules_path:
+
+        custom_modules_path = Path(custom_modules_path)
+
+        if custom_modules_path.is_dir():
+
+            # Add 'custom_modules' folder to sys.path
+            workdir = custom_modules_path.parents[0]
+            module_dir = custom_modules_path.name
+
+            sys.path.insert(0, str(workdir))
+
+            try:
+                module = importlib.import_module(module_dir)
+                logger.info(f"Found {custom_modules_path}")
+            except ImportError:
+                raise ImportError(f"It was not possible to import modules from {custom_modules_path}.")
+        else:
+            raise ValueError(f"Modules path {custom_modules_path} isn't a directory. Check if you have defined it properly.")
+    else:
+        logger.debug("No custom module is being used.")
 
 
 if __name__ == "__main__":
