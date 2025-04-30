@@ -91,7 +91,7 @@ def main():
     assert isinstance(n_trials, int) and n_trials > 0, f"Error! {n_trials=} is invalid"
     run_repetitions = config_init.run_repetitions
     print(run_repetitions)
-    parent_run_id = config_init.parent_run_id
+    parent_run_id = args.parent_run_id
     if parent_run_id is not None:
         assert isinstance(parent_run_id, str), f"Error! {parent_run_id=} is not a str"
 

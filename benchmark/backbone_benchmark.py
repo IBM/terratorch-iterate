@@ -233,7 +233,7 @@ def benchmark_backbone(
 
     backbone: str = defaults.terratorch_task["model_args"]["backbone"]
     task_names = [task.name for task in tasks]
-    run_name = f"top_run_{experiment_name}" if run_name is None else run_name
+    run_name = experiment_name if run_name is None else run_name
 
     completed_task_run_names = []
     run_hpo = True

@@ -283,16 +283,16 @@ def rerun_best_from_backbone(
     table_entries = []
     ray_tasks = []
 
-    repeated_storage_uri = f"{storage_uri}_repeated_exp"
-    if not os.path.exists(repeated_storage_uri):
-        os.makedirs(repeated_storage_uri)
+    # repeated_storage_uri = f"{storage_uri}_repeated_exp"
+    # if not os.path.exists(repeated_storage_uri):
+    #     os.makedirs(repeated_storage_uri)
 
     repeated_experiment_name = f"{experiment_name}_repeated_exp"
-    mlflow.set_tracking_uri(repeated_storage_uri)
+    # mlflow.set_tracking_uri(repeated_storage_uri)
     mlflow.set_experiment(repeated_experiment_name)
 
-    backbone_name = defaults.terratorch_task["model_args"]["backbone"]
-    with mlflow.start_run(run_name=backbone_name, run_id=None) as run:
+    # backbone_name = defaults.terratorch_task["model_args"]["backbone"]
+    with mlflow.start_run(run_name=repeated_experiment_name, run_id=None) as run:
         for task in tasks:
             logger.info(f"\n\ntask: {task.name}")
             matching_runs = [run for run in runs if run.info.run_name.endswith(task.name)]  # type: ignore
@@ -313,21 +313,27 @@ def rerun_best_from_backbone(
                 output_path = sorted(past_output_path)[0]
             logger.info(f"output path: {output_path}")
             if os.path.exists(output_path):
-                logger.info("there are previous results from repeated experiments")
-                existing_output = pd.read_csv(output_path)
-                existing_output = existing_output[table_columns]
-                existing_task_output = existing_output.loc[
-                    existing_output["Task"] == task.name
-                ].copy()
-                rows, cols = existing_task_output.shape
-                logger.info(f"rows: {rows} \t cols: {cols}")
-                if rows > run_repetitions:
-                    logger.info("task has valid results, will not re-run")
-                    continue
-                past_seeds = [
-                    int(item.split("_")[-1])
-                    for item in existing_task_output["mlflow_run_name"].tolist()
-                ]
+  
+                output_path_csv = glob.glob(output_path + '*.csv')
+                if len(output_path_csv) > 0: output_path = output_path_csv
+                if (output_path.find('.csv') > -1):
+                    logger.info("there are previous results from repeated experiments")
+                    existing_output = pd.read_csv(output_path)
+                    existing_output = existing_output[table_columns]
+                    existing_task_output = existing_output.loc[
+                        existing_output["Task"] == task.name
+                    ].copy()
+                    rows, cols = existing_task_output.shape
+                    logger.info(f"rows: {rows} \t cols: {cols}")
+                    if rows > run_repetitions:
+                        logger.info("task has valid results, will not re-run")
+                        continue
+                    past_seeds = [
+                        int(item.split("_")[-1])
+                        for item in existing_task_output["mlflow_run_name"].tolist()
+                    ]
+                else:
+                    past_seeds = []
             else:
                 past_seeds = []
             logger.info(f"past_seeds for task: {past_seeds}")
@@ -375,7 +381,7 @@ def rerun_best_from_backbone(
                     score = non_remote_fit(
                         experiment_name=repeated_experiment_name,
                         parent_run_id=run.info.run_id,
-                        storage_uri=repeated_storage_uri,
+                        storage_uri=storage_uri,
                         task=task,
                         training_spec=training_spec,
                         lightning_task_class=lightning_task_class,
