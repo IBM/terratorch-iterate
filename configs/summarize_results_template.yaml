@@ -5,4 +5,5 @@ list_of_experiment_names:
   - quick_test3
 task_names:
   - nz_cattle
-
+task_metrics:
+  - val/Multiclass_Jaccard_Index

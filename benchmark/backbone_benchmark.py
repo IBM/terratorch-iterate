@@ -12,6 +12,7 @@ import mlflow
 import optuna
 import pandas as pd
 import torch
+import logging
 from optuna.pruners import HyperbandPruner
 from optuna.samplers import BaseSampler, RandomSampler
 from tabulate import tabulate
@@ -55,7 +56,7 @@ def benchmark_backbone_on_task(
     optuna_db_path = Path(storage_uri).parents[0] / "optuna_db"
     if not os.path.exists(optuna_db_path):
         os.makedirs(optuna_db_path)
-    optuna_db_path = optuna_db_path / f"{experiment_name}_{experiment_run_id}.db"
+    optuna_db_path = optuna_db_path / f"{experiment_name}_{experiment_run_id}"
     optuna_db_path = str(optuna_db_path)
 
     task_run_id = sync_mlflow_optuna(
@@ -174,6 +175,7 @@ def benchmark_backbone(
     tasks: list[Task],
     experiment_name: str,
     storage_uri: str,
+    logger: logging.RootLogger | None,
     ray_storage_path: str | None = None,
     backbone_import: str | None = None,
     run_name: str | None = None,
@@ -186,6 +188,7 @@ def benchmark_backbone(
     continue_existing_experiment: bool = True,
     test_models: bool = False,
     run_repetitions: int = REPEATED_SEEDS_DEFAULT,
+    report_on_best_val: bool = True,
 ) -> str:
     """Highest level function to benchmark a backbone using a single node
 
@@ -208,9 +211,11 @@ def benchmark_backbone(
     """
     base = Path(storage_uri).parents[0]
     PATH_TO_JOB_TRACKING = base / "job_progress_tracking"
-    REPEATED_EXP_FOLDER = base / "repeated_exp_output_mlflow"
+    REPEATED_EXP_FOLDER = base / "repeated_exp_output_csv"
 
-    logger = get_logger(log_folder=str(base / "job_logs"))
+    if logger is None:
+        logger = get_logger(log_folder=str(base / "job_logs"))
+
     if not os.path.exists(REPEATED_EXP_FOLDER):
         os.makedirs(REPEATED_EXP_FOLDER)
     if not os.path.exists(PATH_TO_JOB_TRACKING):
@@ -233,7 +238,7 @@ def benchmark_backbone(
 
     backbone: str = defaults.terratorch_task["model_args"]["backbone"]
     task_names = [task.name for task in tasks]
-    run_name = experiment_name if run_name is None else run_name
+    run_name = f"top_run_{experiment_name}" if run_name is None else run_name
 
     completed_task_run_names = []
     run_hpo = True
@@ -350,12 +355,14 @@ def benchmark_backbone(
         else:
             logger.info("HPO is not complete. Please re-run this experiment")
             raise RuntimeError
-    print(run_repetitions)
-    if run_repetitions >= 1:
+    logger.info("HPO complete")
 
+    logger.info(f"run_repetitions: {run_repetitions}")
+    
+    if run_repetitions >= 1:
         # run repeated experiments
         logger.info(
-            f"HPO complete. Now running repeated experiments \n\
+            f"Now running {run_repetitions} repeats per experiment \n\
                     Parent run: {finished_run_id} \n\
                     Experiment name: {experiment_name} \n\
                     "
@@ -382,6 +389,7 @@ def benchmark_backbone(
             description=description,
             use_ray=False,
             run_repetitions=run_repetitions,
+            report_on_best_val=report_on_best_val,
         )
 
-    return experiment_id
+    return finished_run_id

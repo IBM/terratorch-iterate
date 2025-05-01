@@ -19,6 +19,8 @@ pip install terratorch-iterate
 ### Suggested setup for development
 
 ```sh
+git clone https://github.com/IBM/terratorch-iterate.git
+cd terratorch-iterate
 pip install --upgrade pip setuptools wheel
 pip install -e .
 pip install -e ".[dev]"
@@ -54,7 +56,7 @@ To do this it relies on a configuration file where the benchmark is defined. Thi
 
 - `run_repetitions`: number of repetitions to be run using best setting from optimization. 
 
-See `benchmark_v2_template.yaml` in the git repo for an example.
+See `configs/benchmark_v2_template.yaml` in the git repo for an example.
 
 Besides the `--config` argument, terratorch-iterate also has two other arguments: 
 * if users include `--hpo` argument, then terratorch-iterate will optimize hyperparameters. Otherwise, it will rerun best experiment 
@@ -95,14 +97,17 @@ To check the experiment results, use `mlflow ui --host $(hostname -f) --port <po
 ## Summarizing results
 Summarizing results and hyperparameters of multiple experiments relies on a configuration file where the experiments and tasks are defined. This consists of:
 
-- `list_of_experiment_names`: list of MLFLOW experiment names which had been completed.
+- `list_of_experiment_names`: List of MLFLOW experiment names which had been completed.
 
-- `task_names`: list of tasks found in each experiment in `list_of_experiment_names`.
+- `task_names`: List of tasks found in each experiment in `list_of_experiment_names`.
 
-- `run_repetitions`: number of repetitions to be expected for each experiment. This should be the same as the value used in in each experiment config file during optimization. 
+- `run_repetitions`: Number of repetitions to be expected for each experiment. This should be the same as the value used in in each experiment config file during optimization. 
 
 - `storage_uri`: Location to use for mlflow storage for the hyperparameter optimization (hpo) stage. This should be the same value used as `storage_uri` in each experiment config file during optimization (see above).
 
+- `task_metrics`: List of metrics that were reported for each each task, e.g. `val/Multiclass_Jaccard_Index`
+
+See `configs/summarize_results_template.yaml` in the git repo for an example.
 
 To summarize results and hyperparameters, please run the following: 
 ```shell
