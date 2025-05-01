@@ -115,7 +115,7 @@ terratorch iterate --summarize --config <summarize-config-file>
 ```
 For instance:
 ```shell
-terratorch iterate --hpo --repeat --config configs/summarize_results.yaml
+terratorch iterate --summarize --config configs/summarize_results.yaml
 ```
 
 The results and hyperparameters are extracted into the csv file: `summarized_results/results_and_parameters.csv`.

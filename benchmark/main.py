@@ -33,9 +33,10 @@ def main():
     parser.add_argument('--bayesian_search', type=bool, default=True)
     parser.add_argument("--hpo", help="optimize hyperparameters", action="store_true")
     parser.add_argument("--repeat", help="repeat best experiments", action="store_true") 
-    parser.add_argument("--summarize", help="summarize results from repeated experiments", action="store_true") 
-    
-    
+    parser.add_argument("--summarize", help="summarize results from repeated experiments", action="store_true")
+    parser.add_argument('--list_of_experiment_names', type=list[str]) 
+    parser.add_argument('--task_names', type=list[str]) 
+    parser.add_argument('--task_metrics', type=list[str]) 
 
     args = parser.parse_args()
     paths: List[Any] = args.config
@@ -43,15 +44,28 @@ def main():
     config = parser.parse_path(path)
     config_init = parser.instantiate_classes(config)
 
-    #summarize results from multiple experiments
     summarize = args.summarize
     assert isinstance(summarize, bool), f"Error! {summarize=} is not a bool"
+    repeat = args.repeat
+    assert isinstance(repeat, bool), f"Error! {repeat=} is not a bool"
+    hpo = args.hpo
+    assert isinstance(hpo, bool), f"Error! {hpo=} is not a bool"
+
+    storage_uri = config_init.storage_uri
+    assert isinstance(storage_uri, str), f"Error! {storage_uri=} is not a str"
+    logger_path = config_init.logger
+    if logger_path is None:
+        storage_uri_path = Path(storage_uri)
+        logger = get_logger(log_folder=f"{str(storage_uri_path.parents[0])}/job_logs")
+    else:
+        logging.config.fileConfig(fname=logger_path, disable_existing_loggers=False)
+        logger = logging.getLogger("terratorch-iterate")
+
+    #only summarize results from multiple experiments
     if summarize:
         assert (
             hpo is False and repeat is False
         ), f"Error! both {repeat=} and {hpo=} must be False when summarizing results from multiple experiments."
-        storage_uri = config_init.storage_uri
-        assert isinstance(storage_uri, str), f"Error! {storage_uri=} is not a str"
 
         list_of_experiment_names = config_init.list_of_experiment_names
         assert isinstance(list_of_experiment_names, list), f"Error! {list_of_experiment_names=} is not a list"
@@ -82,10 +96,6 @@ def main():
         return
 
     #optimize hyperparameters and/or do repeated runs for single experiments
-    repeat = args.repeat
-    assert isinstance(repeat, bool), f"Error! {repeat=} is not a bool"
-    hpo = args.hpo
-    assert isinstance(hpo, bool), f"Error! {hpo=} is not a bool"
     assert (
         hpo is True or repeat is True
     ), f"Error! either {repeat=} or {hpo=} must be True"
@@ -93,7 +103,6 @@ def main():
     if parent_run_id is not None:
         assert isinstance(parent_run_id, str), f"Error! {parent_run_id=} is not a str"
 
-    
     # validate the objects
     experiment_name = config_init.experiment_name
     assert isinstance(experiment_name, str), f"Error! {experiment_name=} is not a str"
@@ -112,8 +121,6 @@ def main():
         if t.terratorch_task is None:
             t.terratorch_task = defaults.terratorch_task
     # defaults.trainer_args["max_epochs"] = 5
-    storage_uri = config_init.storage_uri
-    assert isinstance(storage_uri, str), f"Error! {storage_uri=} is not a str"
 
     optimization_space = config_init.optimization_space
     assert isinstance(
@@ -150,15 +157,6 @@ def main():
     assert isinstance(
             bayesian_search, bool
         ), f"Error! {bayesian_search=} is not a bool"
-        
-
-    logger_path = config_init.logger
-    if logger_path is None:
-        storage_uri_path = Path(storage_uri)
-        logger = get_logger(log_folder=f"{str(storage_uri_path.parents[0])}/job_logs")
-    else:
-        logging.config.fileConfig(fname=logger_path, disable_existing_loggers=False)
-        logger = logging.getLogger("terratorch-iterate")
 
     #custom_modules_path is optional
     custom_modules_path = config_init.custom_modules_path
