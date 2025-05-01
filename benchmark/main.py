@@ -111,9 +111,9 @@ def main():
             assert (
                 storage_uri_path.exists() and storage_uri_path.is_dir()
             ), f"Error! Unable to create new output_path based on storage_uri_path because the latter does not exist: {storage_uri_path}"
-            unique_id = uuid.uuid4().hex
-            output_path = storage_uri_path.parents[0] / f"{unique_id}_repeated_exp"
+            output_path = storage_uri_path.parents[0] / "repeated_exp_output_mlflow"
             output_path.mkdir(parents=True, exist_ok=True)
+            output_path = output_path /  f"{experiment_name}_repeated_exp_mlflow.csv"
             output = str(output_path)
 
         logger.info("Rerun best experiments...")
