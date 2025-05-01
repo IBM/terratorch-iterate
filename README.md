@@ -50,13 +50,21 @@ To do this it relies on a configuration file where the benchmark is defined. Thi
 
 - `save_models`: Whether to save models. Defaults to False. (Setting this to true can take up a lot of space). Models will be logged as artifacts for each run in MLFlow.
 
-- `storage_uri`: Location to use for mlflow storage for the hyperparameter optimization (hpo) stage. During optimization, additional folders will be created in parent directory of `storage_uri`. For example, if `storage_uri` is `/opt/benchmark_experiments/hpo_results`, additional folders will include: `/opt/benchmark_experiments/hpo_repeated_exp`, `/opt/benchmark_experiments/repeated_exp_output_csv`, `/opt/benchmark_experiments/job_logs`, `/opt/benchmark_experiments/optuna_db`, etc.
-
 - `optimization_space`: Hyperparameter space to search over. Bayesian optimization tends to work well with a small number of hyperparameters.
 
 - `run_repetitions`: number of repetitions to be run using best setting from optimization. 
 
-See `configs/benchmark_v2_template.yaml` in the git repo for an example.
+- `storage_uri`: Location to use for mlflow storage for the hyperparameter optimization (hpo) stage. During optimization, additional folders will be created in parent directory of `storage_uri`. For example, if `storage_uri` is `/opt/benchmark_experiments/hpo`, additional folders will include: 
+```
+/opt/benchmark_experiments/
+└──hpo_results
+└──hpo_repeated_exp
+└──repeated_exp_output_csv
+└──job_logs
+└──optuna_db
+```
+
+Please see `configs/benchmark_v2_template.yaml` in the git repo for an example.
 
 Besides the `--config` argument, terratorch-iterate also has two other arguments: 
 * if users include `--hpo` argument, then terratorch-iterate will optimize hyperparameters. Otherwise, it will rerun best experiment 
@@ -105,7 +113,7 @@ Summarizing results and hyperparameters of multiple experiments relies on a conf
 
 - `storage_uri`: Location to use for mlflow storage for the hyperparameter optimization (hpo) stage. This should be the same value used as `storage_uri` in each experiment config file during optimization (see above).
 
-- `benchmark_name`: string to used to name resulting csv file
+- `benchmark_name`: string to be used to name resulting csv file
 
 
 
@@ -120,7 +128,18 @@ For instance:
 terratorch iterate --summarize --config configs/summarize_results.yaml
 ```
 
-The results and hyperparameters are extracted into the csv file: `summarized_results/<benchmark_name>/results_and_parameters.csv`.
+The results and hyperparameters are extracted into a csv file. For example, if `storage_uri` is `/opt/benchmark_experiments/hpo`, then sumarized results will be saved in last file as shown below:
+```
+/opt/benchmark_experiments/
+└──hpo_results
+└──hpo_repeated_exp
+└──repeated_exp_output_csv
+└──job_logs
+└──optuna_db
+└──summarized_results/
+        └──<benchmark_name>/
+                └──results_and_parameters.csv
+```
 
 
 ## Ray
