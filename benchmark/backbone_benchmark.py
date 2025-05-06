@@ -142,7 +142,6 @@ def benchmark_backbone_on_task(
             "n_trials": str(n_trials),
         }
         mlflow.set_tags(tags)
-
         best_params = unflatten(study.best_trial.params)
         mlflow.log_params(best_params)  # unflatten
         mlflow.log_metric(f"best_{task.metric}", study.best_value)
