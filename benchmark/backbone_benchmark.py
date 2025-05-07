@@ -77,6 +77,22 @@ def benchmark_backbone_on_task(
         task = training_spec.task
         lightning_task_class = training_spec.task.type.get_class_from_enum()
 
+        if hasattr(training_spec.task.terratorch_task["model_args"], 'decoder'):
+            decoder = str(training_spec.task.terratorch_task["model_args"]["decoder"]) 
+        elif hasattr(training_spec.task.terratorch_task["model_args"], 'model'):
+            decoder = str(training_spec.task.terratorch_task["model_args"]["model"]) 
+        else:
+            decoder = "N/A"
+        tags = {
+            "early_stop_patience": str(training_spec.task.early_stop_patience),
+            "partition_name": str(training_spec.task.datamodule.partition) if hasattr(training_spec.task.datamodule, 'partition') else 'default',
+            "decoder": decoder,
+            "backbone": str(
+                training_spec.task.terratorch_task["model_args"]["backbone"])  if hasattr(
+                    training_spec.task.terratorch_task["model_args"], 'backbone') else "N/A",
+            "n_trials": str(n_trials),
+        }
+    
         # if no optimization params, just run it
         if optimization_space is None:
             return (
@@ -132,22 +148,6 @@ def benchmark_backbone_on_task(
             catch=[torch.cuda.OutOfMemoryError],
         )
 
-        if hasattr(training_spec.task.terratorch_task["model_args"], 'decoder'):
-            decoder = str(training_spec.task.terratorch_task["model_args"]["decoder"]) 
-        elif hasattr(training_spec.task.terratorch_task["model_args"], 'model'):
-            decoder = str(training_spec.task.terratorch_task["model_args"]["model"]) 
-        else:
-            decoder = "N/A"
-        tags = {
-            "early_stop_patience": str(training_spec.task.early_stop_patience),
-            "partition_name": str(training_spec.task.datamodule.partition) if hasattr(training_spec.task.datamodule, 'partition') else 'default',
-            "decoder": decoder,
-            "backbone": str(
-                training_spec.task.terratorch_task["model_args"]["backbone"])  if hasattr(
-                    training_spec.task.terratorch_task["model_args"], 'backbone') else "N/A",
-            "n_trials": str(n_trials),
-        }
-        
         mlflow.set_tags(tags)
         best_params = unflatten(study.best_trial.params)
         mlflow.log_params(best_params)  # unflatten
