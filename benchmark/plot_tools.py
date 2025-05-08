@@ -80,6 +80,7 @@ def normalize_bootstrap_and_plot(
     df,
     metric,
     benchmark_name,
+    normalizer_folder,
     model_order,
     model_colors=None,
     repeat=100,
@@ -134,6 +135,11 @@ class Normalizer:
         """Call the Normalizer class."""
         mn, mx = self.range_dict[ds_name]
         range = mx - mn
+        
+        #for datasets with one value only
+        if mx == mn: 
+            range = 1
+
         if scale_only:
             return values / range
         else:
