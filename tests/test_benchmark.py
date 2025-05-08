@@ -181,14 +181,6 @@ def test_run_benchmark(
         except FileNotFoundError as e:
             print(f"Error creating directory: {e}")
 
-    logger_path = config_init.logger
-    if logger_path is None:
-        storage_uri_path = Path(storage_uri)
-        logger = get_logger(log_folder=f"{str(storage_uri_path.parents[0])}/job_logs")
-    else:
-        logging.config.fileConfig(fname=logger_path, disable_existing_loggers=False)
-        logger = logging.getLogger("terratorch-iterate")
-        
     optimization_space = config_init.optimization_space
     assert isinstance(
         optimization_space, dict
@@ -226,7 +218,7 @@ def test_run_benchmark(
         continue_existing_experiment=continue_existing_experiment,
         test_models=test_models,
         run_repetitions=run_repetitions,
-        logger=logger,
+        logger=None,
     )
     validate_results(
         experiment_name=experiment_name,
