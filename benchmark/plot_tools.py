@@ -9,10 +9,11 @@ import seaborn as sns
 from matplotlib.ticker import FormatStrFormatter
 import json
 from scipy.stats import trim_mean
+from pathlib import Path
+
 
 
 sns.set_style("dark", {"grid.color": "0.98", "axes.facecolor": "(0.95, 0.95, 0.97)"})
-GEO_BENCH_DIR = "geobench"
 
 
 def biqm(scores):
@@ -90,7 +91,10 @@ def normalize_bootstrap_and_plot(
     # normalize all the scores based on the benchmark name.
     # the normalizing data is expected to be found in the benchmark directory under normalizer.json
     if benchmark_name:
-        normalizer = load_normalizer(benchmark_name=benchmark_name)
+        normalizer = load_normalizer(
+            benchmark_name=benchmark_name,
+            normalizer_folder=normalizer_folder
+            )
         new_metric = normalizer.normalize_data_frame(df, metric)
     else:
         new_metric = metric
@@ -121,9 +125,10 @@ def normalize_bootstrap_and_plot(
 class Normalizer:
     """Class used to normalize results beween min and max for each dataset."""
 
-    def __init__(self, range_dict):
+    def __init__(self, range_dict, normalizer_folder):
         """Initialize a new instance of Normalizer class."""
         self.range_dict = range_dict
+        self.normalizer_folder = normalizer_folder
 
     def __call__(self, ds_name, values, scale_only=False):
         """Call the Normalizer class."""
@@ -150,18 +155,25 @@ class Normalizer:
 
     def save(self, benchmark_name):
         """Save normalizer to json file."""
-        with open(GEO_BENCH_DIR / benchmark_name / "normalizer.json", "w") as f:
+        json_path = Path(self.normalizer_folder) / benchmark_name / "normalizer.json"
+        with open(json_path, "w") as f:
             json.dump(self.range_dict, f, indent=2)
 
 
-def load_normalizer(benchmark_name):
+def load_normalizer(benchmark_name, normalizer_folder):
     """Load normalizer from json file."""
-    with open(GEO_BENCH_DIR / benchmark_name / "normalizer.json", "r") as f:
+    json_path = Path(normalizer_folder) / benchmark_name / "normalizer.json"
+    with open(json_path, "r") as f:
         range_dict = json.load(f)
-    return Normalizer(range_dict)
+    return Normalizer(range_dict, normalizer_folder)
 
 
-def make_normalizer(data_frame, metrics=("test metric",), benchmark_name=None):
+def make_normalizer(
+    data_frame, 
+    normalizer_folder,
+    metrics=("test metric",), 
+    benchmark_name=None,
+    ):
     """Extract min and max from data_frame to build Normalizer object for all datasets."""
     datasets = data_frame["dataset"].unique()
     range_dict = {}
@@ -173,10 +185,10 @@ def make_normalizer(data_frame, metrics=("test metric",), benchmark_name=None):
             data.append(sub_df[metric].to_numpy())
         range_dict[dataset] = (np.min(data), np.max(data))
 
-    normalizer = Normalizer(range_dict)
+    normalizer = Normalizer(range_dict, normalizer_folder)
 
     if benchmark_name:
-        normalizer.save(benchmark_name)
+        normalizer.save(benchmark_name=benchmark_name)
 
     return normalizer
 

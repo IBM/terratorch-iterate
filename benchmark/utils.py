@@ -710,8 +710,6 @@ def visualize_combined_results(
     if not os.path.exists(plots_folder):
         os.makedirs(plots_folder)
 
-    combined_results = []
-    model_order = []
     experiments = list(set(combined_results["experiment_name"]))
     combined_results = combined_results.rename(columns={"experiment_name": "model"})
     num_experiments = len(experiments)
