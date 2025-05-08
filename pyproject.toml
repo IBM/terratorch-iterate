@@ -13,15 +13,16 @@ include = ["benchmark*"]
 [project]
 
 name = "terratorch-iterate"
-version = "0.1.3post1"
+version = "0.1.4"
 requires-python = ">= 3.9"
 description = "A terratorch's plugin for benchmarking and hyperparameter optimization"
 authors = [
       { name = "Carlos Gomes"},
-      { name = "Naomi Simumba"},
-      { name = "Francesc Marti Escofet"},
       { name = "Daniela Szwarcman"},
+      { name = "Francesc Marti Escofet"},
       { name = "Leonardo Pondian Tizzei", email = "ltizzei@br.ibm.com" },
+      { name = "Naomi Simumba"},
+      { name = "Paolo Fraccaro"},
       { name = "Romeo Kienzler"} 
 ]
 license = { "text" = "Apache License, Version 2.0" }
@@ -37,7 +38,7 @@ readme = "README.md"
 
 dependencies = [
 # terratorch versions before 1.0.0 do not support call 'terratorch iterate'
-"terratorch>=0.99.9post1", 
+"terratorch>=0.99.9post1,<=1.0.1", 
 # "terratorch",
 # requests>=2.32.0 because of this vulnerability https://github.com/psf/requests/security/advisories/GHSA-9wx4-h78v-vm56
 "requests>=2.32.0",
@@ -71,7 +72,9 @@ dependencies = [
 "opencv-python-headless",
 "configspace",
 "optuna-integration",
-"seaborn"
+"seaborn",
+# temporary fix to use AugmentationSequential from torchgeo
+"torchgeo<0.7.0"
 ]
 
 [project.urls]
