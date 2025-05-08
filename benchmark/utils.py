@@ -396,7 +396,7 @@ def get_results_and_parameters(
     if Path(storage_uri).exists() and Path(storage_uri).is_dir():
         results_dir = Path(storage_uri).parents[0] / "summarized_results" / benchmark_name
     else:
-        print("Please use a valid directory for storage_uri")
+        logger.info("Please use a valid directory for storage_uri")
         raise ValueError
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
@@ -427,6 +427,14 @@ def get_results_and_parameters(
     results_and_parameters.to_csv(
         f"{str(results_dir)}/results_and_parameters.csv", index=False
     )
+
+    visualize_combined_results(
+            combined_results=results_and_parameters,
+            storage_uri=storage_uri,
+            logger=logger,
+            plot_file_base_name=f"multiple_models_{benchmark_name}",
+        )
+        
     return results_and_parameters
 
 
@@ -702,8 +710,6 @@ def visualize_combined_results(
     if not os.path.exists(plots_folder):
         os.makedirs(plots_folder)
 
-    combined_results = []
-    model_order = []
     experiments = list(set(combined_results["experiment_name"]))
     combined_results = combined_results.rename(columns={"experiment_name": "model"})
     num_experiments = len(experiments)
@@ -719,7 +725,6 @@ def visualize_combined_results(
         plot_tools.plot_per_dataset(
             combined_results,
             model_order=model_order,
-            plot_file_base_name=plot_file_base_name,
             model_colors=model_colors,
             metric="test metric",
             sharey=False,
