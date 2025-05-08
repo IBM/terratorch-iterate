@@ -155,14 +155,14 @@ class Normalizer:
 
     def save(self, benchmark_name):
         """Save normalizer to json file."""
-        json_path = Path(self.normalizer_folder) / benchmark_name / "normalizer.json"
+        json_path = Path(self.normalizer_folder) / f"{benchmark_name}_normalizer.json"
         with open(json_path, "w") as f:
             json.dump(self.range_dict, f, indent=2)
 
 
 def load_normalizer(benchmark_name, normalizer_folder):
     """Load normalizer from json file."""
-    json_path = Path(normalizer_folder) / benchmark_name / "normalizer.json"
+    json_path = Path(normalizer_folder) / f"{benchmark_name}_normalizer.json"
     with open(json_path, "r") as f:
         range_dict = json.load(f)
     return Normalizer(range_dict, normalizer_folder)

@@ -725,7 +725,6 @@ def visualize_combined_results(
         plot_tools.plot_per_dataset(
             combined_results,
             model_order=model_order,
-            plot_file_base_name=plot_file_base_name,
             model_colors=model_colors,
             metric="test metric",
             sharey=False,
