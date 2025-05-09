@@ -6,7 +6,7 @@ This module contains the high level functions for benchmarking on a single node.
 import os
 import importlib
 from functools import partial
-from typing import Any
+from typing import Any, Dict
 from pathlib import Path
 import mlflow
 import optuna
@@ -134,7 +134,11 @@ def benchmark_backbone_on_task(
 
         tags = {
             "early_stop_patience": str(training_spec.task.early_stop_patience),
-            "partition_name": str(training_spec.task.datamodule.partition) if hasattr(training_spec.task.datamodule, 'partition') else 'default',
+            "partition_name": (
+                str(training_spec.task.datamodule.partition)
+                if hasattr(training_spec.task.datamodule, 'partition')
+                else 'default'
+            ),
             "decoder": str(training_spec.task.terratorch_task["model_args"]["decoder"]),
             "backbone": str(
                 training_spec.task.terratorch_task["model_args"]["backbone"]
@@ -189,7 +193,7 @@ def benchmark_backbone(
     test_models: bool = False,
     run_repetitions: int = REPEATED_SEEDS_DEFAULT,
     report_on_best_val: bool = True,
-) -> str:
+) -> Dict[str, str]:
     """Highest level function to benchmark a backbone using a single node
 
     Args:
@@ -348,7 +352,7 @@ def benchmark_backbone(
             exp_parent_run_name=run_name,
             task_names=task_names,
             n_trials=n_trials,
-            backbone=backbone
+            backbone=backbone,
         )
         if existing_experiments["finished_run"] is not None:
             finished_run_id = existing_experiments["finished_run"]
@@ -358,7 +362,7 @@ def benchmark_backbone(
     logger.info("HPO complete")
 
     logger.info(f"run_repetitions: {run_repetitions}")
-    
+
     if run_repetitions >= 1:
         # run repeated experiments
         logger.info(
@@ -392,4 +396,4 @@ def benchmark_backbone(
             report_on_best_val=report_on_best_val,
         )
 
-    return finished_run_id
+    return {"experiment_id": experiment_id, "finished_run_id": finished_run_id}

@@ -25,8 +25,11 @@ def main():
         result = subprocess.run(cmd, capture_output=True)
         if result.returncode == 0:
             print("Command executed successfully:")
-            print("stdout:", result.stdout)
-            print("stderr:", result.stderr)
+            msg = "is submitted to default queue"
+            stdout: str = result.stdout
+            assert isinstance(stdout, str)
+            index = stdout.find(msg)
+            
         else:
             print("Command failed with error code:", result.returncode)
             print("stderr:", result.stderr)

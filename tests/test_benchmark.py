@@ -207,7 +207,7 @@ def test_run_benchmark(
         ), f"Error! {run_repetitions=} is invalid"
     else:
         run_repetitions = 0
-    mlflow_experiment_id = benchmark_backbone(
+    mlflow_info = benchmark_backbone(
         experiment_name=experiment_name,
         run_name=run_name,
         run_id=None,
@@ -223,10 +223,11 @@ def test_run_benchmark(
         run_repetitions=run_repetitions,
         logger=None,
     )
+    assert isinstance(mlflow_info, dict), f"Error! {mlflow_info=} is not a dict"
     validate_results(
         experiment_name=experiment_name,
         storage_uri=str(storage_uri_path),
-        finished_run_id=mlflow_experiment_id,
+        finished_run_id=mlflow_info["experiment_id"],
     )
 
 
@@ -338,7 +339,9 @@ def validate_results(experiment_name: str, storage_uri: str, finished_run_id: st
     meta_yaml = "meta.yaml"
 
     meta_yaml_path = dir_path / meta_yaml
-    assert meta_yaml_path.exists(), f"Error! meta.yaml file {meta_yaml_path} does not exist"
+    assert (
+        meta_yaml_path.exists()
+    ), f"Error! meta.yaml file {meta_yaml_path} does not exist"
     # open file and check that the experiment name is the same
     with open(meta_yaml_path, mode="r") as f:
         # read all the lines
@@ -353,5 +356,5 @@ def validate_results(experiment_name: str, storage_uri: str, finished_run_id: st
                 experiment_id_found = True
         assert (
             experiment_name_found and experiment_id_found
-        ), f"Error! Both experiment id and name should be in the {meta_yaml_path=}: {experiment_id_found=} {experiment_name_found=}"
+        ), f"Error! Both experiment name ({experiment_name=}) and finished run id ({finished_run_id=}) must be in the {meta_yaml_path=}: {experiment_id_found=} {experiment_name_found=}"
     # TODO delete the directories that were created by this test case
