@@ -1,6 +1,5 @@
 import subprocess
 from pathlib import Path
-import time
 from tests.test_benchmark import TEST_CASE_IDS
 
 
@@ -8,8 +7,8 @@ def main():
 
     for tc_id in TEST_CASE_IDS:
         print(f"Running test case {tc_id}")
-        stderr_file = f"test_benchmark-{tc_id}.err"
-        stdout_file = f"test_benchmark-{tc_id}.out"
+        stderr_file = f"test-benchmark-{tc_id}.err"
+        stdout_file = f"test-benchmark-{tc_id}.out"
 
         err_file = Path.home() / stderr_file
         # delete file if it exists
@@ -24,29 +23,14 @@ def main():
             print(f"Delete file {out_file}")
             out_file.unlink(missing_ok=True)
             assert not out_file.exists()
-        jbsub = f"jbsub -e {err_file} -o {out_file} -m 40G -c 1+1 -r v100 pytest --cov-report html --cov=benchmark tests/test_benchmark.py::test_run_benchmark[{tc_id}]"
+        jbsub = f"jbsub -e {err_file} -o {out_file} -m 40G -c 1+1 -r v100 pytest -vv --cov-report html --cov=benchmark tests/test_benchmark.py::test_run_benchmark[{tc_id}]"
         cmd = jbsub.split()
         result = subprocess.run(cmd, capture_output=True)
         if result.returncode == 0:
             print(f"Command executed successfully: {jbsub}")
-            msg = "> is submitted to default queue"
-            stdout: str = result.stdout.decode('utf-8')
-            assert isinstance(stdout, str), f"Error! not a str: {stdout=}"
-            msg_index = stdout.find(msg)
-            assert msg_index > 0
-            lt_index = stdout[:msg_index].find(">")
-            job_id = stdout[lt_index + 1 : msg_index]
-            jbinfo = f"jbinfo {job_id}"
-            cmd = jbinfo.split()
-            result = subprocess.run(cmd, capture_output=True)
-            stdout: str = result.stdout.decode('utf-8')
-            while result.returncode == 0 and "RUN" in stdout:
-                time.sleep(60)
-                result = subprocess.run(cmd, capture_output=True)
-                stdout: str = result.stdout.decode('utf-8')
-                
+
         else:
-            print(jbsub)
+            print(f"Command failed: {jbsub}")
             print("Command failed with error code:", result.returncode)
             print("stderr:", result.stderr)
 
