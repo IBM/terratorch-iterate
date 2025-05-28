@@ -38,7 +38,7 @@ readme = "README.md"
 
 dependencies = [
 # terratorch versions before 1.0.0 do not support call 'terratorch iterate'
-"terratorch>=0.99.9post1,<=1.0.1", 
+"terratorch>=0.99.9post1", 
 # "terratorch",
 # requests>=2.32.0 because of this vulnerability https://github.com/psf/requests/security/advisories/GHSA-9wx4-h78v-vm56
 "requests>=2.32.0",
@@ -88,7 +88,8 @@ dev = [
   "mkdocs-material",
   "mkdocstrings[python]",
   "mike", # for building docs with versions
-  "tox"
+  "tox",
+  "pre-commit"
 ]
 
 test = [
