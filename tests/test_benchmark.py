@@ -107,22 +107,22 @@ def find_file(directory: str, filename: str):
 
 INPUT_TEST_RUN_BENCHMARK = [
     (
-        "configs/dofa_large_patch16_224_upernetdecoder_true_modified.yaml",
+        "configs/tests/geobench_v1_prithvi_simplified.yaml",
         True,
         True,
     ),
     (
-        "configs/dofa_large_patch16_224_upernetdecoder_true_modified.yaml",
+        "configs/tests/geobench_v1_prithvi_simplified.yaml",
         True,
         False,
     ),
     (
-        "configs/dofa_large_patch16_224_upernetdecoder_true_modified.yaml",
+        "configs/tests/geobench_v1_prithvi_simplified.yaml",
         False,
         True,
     ),
     (
-        "configs/dofa_large_patch16_224_upernetdecoder_true_modified.yaml",
+        "configs/tests/geobench_v1_prithvi_simplified.yaml",
         False,
         False,
     ),

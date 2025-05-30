@@ -3,7 +3,7 @@ run_name: test_models_saved_multiple_epochs_no_ray
 defaults:
   trainer_args:
     precision: bf16-mixed # for these new models pretrained with bf16-mixed we should probably finetune with bf16-mixed
-    max_epochs: 300
+    max_epochs: 5
   terratorch_task:
     model_args:
       pretrained: True
@@ -84,8 +84,8 @@ tasks:
       - decoder_channels
       - head_dropout
     metric: val/Multilabel_F1_Score
-    early_stop_patience: 50
-n_trials: 16
+    early_stop_patience: 5
+n_trials: 2
 save_models: False
 storage_uri: /dccstor/geofm-finetuning/terratorch-iterate-test/benchmark
 ray_storage_path: /dccstor/geofm-finetuning/terratorch-iterate-test/ray_storage
