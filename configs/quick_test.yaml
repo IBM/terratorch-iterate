@@ -74,8 +74,8 @@ tasks:
 
 n_trials: 1
 save_models: False
-storage_uri: /dccstor/sentinel1/nsimumba/test_terratorch/output/hpo_results
-ray_storage_path: /dccstor/sentinel1/nsimumba/test_terratorch/ray_storage_results
+storage_uri: /u/ltizzei/iterate_output/test_terratorch/output/hpo_results
+ray_storage_path: /u/ltizzei/iterate_output/test_terratorch/ray_storage_results
 optimization_space:
   batch_size:
     - 8
