@@ -30,8 +30,6 @@ RAY_STORAGE = os.getenv(
     "RAY_STORAGE", "/dccstor/geofm-finetuning/terratorch-iterate-test/ray_storage"
 )
 
-TEST_CASE_IDS = ["0", "1", "2", "3", "4", "5", "6", "7"]
-
 
 @pytest.fixture(scope="module")
 def defaults() -> Defaults:
@@ -107,34 +105,34 @@ def find_file(directory: str, filename: str):
     return None
 
 
+INPUT_TEST_RUN_BENCHMARK = [
+    (
+        "configs/dofa_large_patch16_224_upernetdecoder_true_modified.yaml",
+        True,
+        True,
+    ),
+    (
+        "configs/dofa_large_patch16_224_upernetdecoder_true_modified.yaml",
+        True,
+        False,
+    ),
+    (
+        "configs/dofa_large_patch16_224_upernetdecoder_true_modified.yaml",
+        False,
+        True,
+    ),
+    (
+        "configs/dofa_large_patch16_224_upernetdecoder_true_modified.yaml",
+        False,
+        False,
+    ),
+]
+TEST_CASE_IDS = [str(i) for i in range(0, len(INPUT_TEST_RUN_BENCHMARK))]
+
+
 @pytest.mark.parametrize(
     "config, continue_existing_experiment, test_models",
-    [
-        # ("configs/benchmark_v2_simple.yaml", False, False),
-        # ("configs/benchmark_v2_simple.yaml", False, True),
-        # ("configs/benchmark_v2_simple.yaml", True, True),
-        # ("configs/benchmark_v2_simple.yaml", True, False),
-        (
-            "configs/dofa_large_patch16_224_upernetdecoder_true_modified.yaml",
-            True,
-            True,
-        ),
-        (
-            "configs/dofa_large_patch16_224_upernetdecoder_true_modified.yaml",
-            True,
-            False,
-        ),
-        (
-            "configs/dofa_large_patch16_224_upernetdecoder_true_modified.yaml",
-            False,
-            True,
-        ),
-        (
-            "configs/dofa_large_patch16_224_upernetdecoder_true_modified.yaml",
-            False,
-            False,
-        ),
-    ],
+    INPUT_TEST_RUN_BENCHMARK,
     ids=TEST_CASE_IDS,
 )
 def test_run_benchmark(
