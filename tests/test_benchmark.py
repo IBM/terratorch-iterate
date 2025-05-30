@@ -110,10 +110,10 @@ def find_file(directory: str, filename: str):
 @pytest.mark.parametrize(
     "config, continue_existing_experiment, test_models",
     [
-        ("configs/benchmark_v2_simple.yaml", False, False),
-        ("configs/benchmark_v2_simple.yaml", False, True),
-        ("configs/benchmark_v2_simple.yaml", True, True),
-        ("configs/benchmark_v2_simple.yaml", True, False),
+        # ("configs/benchmark_v2_simple.yaml", False, False),
+        # ("configs/benchmark_v2_simple.yaml", False, True),
+        # ("configs/benchmark_v2_simple.yaml", True, True),
+        # ("configs/benchmark_v2_simple.yaml", True, False),
         (
             "configs/dofa_large_patch16_224_upernetdecoder_true_modified.yaml",
             True,

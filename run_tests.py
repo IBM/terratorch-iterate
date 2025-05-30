@@ -12,9 +12,9 @@ def run_tests(test_id: Optional[str] = None):
     else:
         test_ids = [test_id]
     for tc_id in test_ids:
-        print(f"Running test case {tc_id}")
-        stderr_file = f"test-benchmark-{tc_id}.err"
-        stdout_file = f"test-benchmark-{tc_id}.out"
+        print(f"Running test case: tests/test_benchmark.py::test_run_benchmark {tc_id}")
+        stderr_file = f"test-iterate-test_benchmark-{tc_id}.err"
+        stdout_file = f"test-iterate-test_benchmark-{tc_id}.out"
 
         err_file = Path.home() / stderr_file
         # delete file if it exists
