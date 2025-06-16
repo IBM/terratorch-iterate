@@ -107,6 +107,26 @@ def find_file(directory: str, filename: str):
 
 INPUT_TEST_RUN_BENCHMARK = [
     (
+        "configs/benchmark_v2_simple.yaml",
+        True,
+        True,
+    ),
+    (
+        "configs/benchmark_v2_simple.yaml",
+        False,
+        False,
+    ),
+    (
+        "configs/dofa_large_patch16_224_upernetdecoder_true_modified.yaml",
+        True,
+        True,
+    ),
+    (
+        "configs/dofa_large_patch16_224_upernetdecoder_true_modified.yaml",
+        False,
+        False,
+    ),
+    (
         "configs/tests/geobench_v1_prithvi_simplified.yaml",
         True,
         True,
