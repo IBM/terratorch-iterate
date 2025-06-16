@@ -166,14 +166,51 @@ INPUT_TEST_RUN_BENCHMARK = [
         False,
         False,
     ),
+    (
+        "configs/tests/geobench_v1_resnet_cashew.yaml",
+        False,
+        False,
+    ),
+    (
+        "configs/tests/geobench_v1_resnet_cashew.yaml",
+        False,
+        True,
+    ),
 ]
-TEST_CASE_IDS = [str(i) for i in range(0, len(INPUT_TEST_RUN_BENCHMARK))]
+
+CONFIG_FILES = [
+    "configs/tests/geobench_v1_resnet_cashew.yaml",
+    "configs/tests/geobench_v1_prithvi_cashew.yaml",
+]
+TEST_CASE_IDS = [str(i) for i in range(0, len(CONFIG_FILES) * 4)]
+
+
+@pytest.fixture(scope="module")
+@pytest.mark.parametrize(
+    "path",
+    CONFIG_FILES,
+)
+def config(path):
+    return path
+
+
+@pytest.fixture(scope="module")
+@pytest.mark.parametrize("cont", [False, True])
+def continue_existing_experiment(cont: bool):
+    return cont
+
+
+@pytest.fixture(scope="module")
+@pytest.mark.parametrize("test", [False, True])
+def test_models(test: bool):
+    return test
 
 
 @pytest.mark.parametrize(
     "config, continue_existing_experiment, test_models",
-    INPUT_TEST_RUN_BENCHMARK,
+    [config, continue_existing_experiment, test_models],
     ids=TEST_CASE_IDS,
+    indirect=True,
 )
 def test_run_benchmark(
     config: str, continue_existing_experiment: bool, test_models: bool
