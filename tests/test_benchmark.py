@@ -191,6 +191,11 @@ TEST_CASE_IDS = [str(i) for i in range(0, len(CONFIG_FILES) * 4)]
     CONFIG_FILES,
 )
 def config(path):
+    path = os.path.join(os.getcwd(), config)
+    config_path = Path(path)
+    assert (
+        config_path.exists()
+    ), f"Error! config does not exist: {config_path.resolve()}"
     return path
 
 
@@ -210,17 +215,13 @@ def test_models(test: bool):
     "config, continue_existing_experiment, test_models",
     [config, continue_existing_experiment, test_models],
     ids=TEST_CASE_IDS,
-    indirect=True,
+    indirect=["config", "continue_existing_experiment", "test_models"],
 )
 def test_run_benchmark(
     config: str, continue_existing_experiment: bool, test_models: bool
 ):
-
     path = os.path.join(os.getcwd(), config)
     config_path = Path(path)
-    assert (
-        config_path.exists()
-    ), f"Error! config does not exist: {config_path.resolve()}"
     # instantiate objects from yaml
     parser = ArgumentParser()
     parser.add_argument('--defaults', type=Defaults)  # to ignore model
