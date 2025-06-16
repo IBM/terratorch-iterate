@@ -11,8 +11,6 @@ from pathlib import Path
 import uuid
 from jsonargparse import ArgumentParser
 
-from benchmark.utils import get_logger
-
 
 BACKBONE_PRETRAINED_FILE = os.getenv(
     "BACKBONE_PRETRAINED_FILE",
@@ -109,6 +107,8 @@ def find_file(directory: str, filename: str):
 CONFIG_FILES = [
     "configs/tests/geobench_v1_resnet_cashew.yaml",
     "configs/tests/geobench_v1_prithvi_cashew.yaml",
+    "configs/tests/geobench_v1_ssl4eos12_resnet50_sentinel2_all_moco_smp_unet_true.yaml",
+    "configs/nasabench_vit_b_os.yaml",
 ]
 CONTINUE_EXISTING_EXPERIMENT = [True, False]
 TEST_MODELS = [True, False]
