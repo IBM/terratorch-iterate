@@ -182,9 +182,6 @@ CONFIG_FILES = [
     "configs/tests/geobench_v1_resnet_cashew.yaml",
     "configs/tests/geobench_v1_prithvi_cashew.yaml",
 ]
-NUM_FILES = len(CONFIG_FILES)
-NUM_IDS = NUM_FILES * 4
-TEST_CASE_IDS = [str(i) for i in range(0, NUM_IDS)]
 
 
 @pytest.fixture(scope="module")
@@ -216,7 +213,6 @@ def test_models(test: bool):
 @pytest.mark.parametrize(
     "config, continue_existing_experiment, test_models",
     [("config", 'continue_existing_experiment', "test_models")],
-    ids=TEST_CASE_IDS,
     indirect=["config", "continue_existing_experiment", "test_models"],
 )
 def test_run_benchmark(
