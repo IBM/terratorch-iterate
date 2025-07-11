@@ -286,10 +286,10 @@ def launch_training(
         client = mlflow.tracking.MlflowClient(
             tracking_uri=storage_uri,
         )
-
-        if not metric.startswith("val/"):
+        pdb.set_trace()
+        if not metric.startswith("val"):
             raise Exception(
-                f"Metric {metric} does not start with `val/`. Please choose a validation metric"
+                f"Metric {metric} does not start with `val`. Please choose a validation metric"
             )
         for_pd_collect = []
         val_metrics_names = []
