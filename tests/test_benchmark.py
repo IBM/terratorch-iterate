@@ -1,3 +1,4 @@
+import itertools
 import logging
 from benchmark.benchmark_types import Defaults, Task, TaskTypeEnum
 import pytest
@@ -9,8 +10,6 @@ import os
 from pathlib import Path
 import uuid
 from jsonargparse import ArgumentParser
-
-from benchmark.utils import get_logger
 
 
 BACKBONE_PRETRAINED_FILE = os.getenv(
@@ -105,28 +104,19 @@ def find_file(directory: str, filename: str):
     return None
 
 
-INPUT_TEST_RUN_BENCHMARK = [
-    (
-        "configs/tests/geobench_v1_prithvi_simplified.yaml",
-        True,
-        True,
-    ),
-    (
-        "configs/tests/geobench_v1_prithvi_simplified.yaml",
-        True,
-        False,
-    ),
-    (
-        "configs/tests/geobench_v1_prithvi_simplified.yaml",
-        False,
-        True,
-    ),
-    (
-        "configs/tests/geobench_v1_prithvi_simplified.yaml",
-        False,
-        False,
-    ),
+CONFIG_FILES = [
+    "configs/tests/geobench_v1_resnet_cashew.yaml",
+    "configs/tests/geobench_v1_prithvi_cashew.yaml",
+    "configs/tests/benchmark_v2_simple.yaml",
+    "configs/tests/dofa_large_patch16_224_upernetdecoder_true_modified.yaml",
+    "configs/tests/geobench_v1_ssl4eos12_resnet50_sentinel2_all_moco_smp_unet_true.yaml",
+    "configs/nasabench_vit_b_os.yaml",
 ]
+CONTINUE_EXISTING_EXPERIMENT = [True, False]
+TEST_MODELS = [True, False]
+INPUT_TEST_RUN_BENCHMARK = list(
+    itertools.product(CONFIG_FILES, CONTINUE_EXISTING_EXPERIMENT, TEST_MODELS)
+)
 TEST_CASE_IDS = [str(i) for i in range(0, len(INPUT_TEST_RUN_BENCHMARK))]
 
 
@@ -138,12 +128,8 @@ TEST_CASE_IDS = [str(i) for i in range(0, len(INPUT_TEST_RUN_BENCHMARK))]
 def test_run_benchmark(
     config: str, continue_existing_experiment: bool, test_models: bool
 ):
-
     path = os.path.join(os.getcwd(), config)
     config_path = Path(path)
-    assert (
-        config_path.exists()
-    ), f"Error! config does not exist: {config_path.resolve()}"
     # instantiate objects from yaml
     parser = ArgumentParser()
     parser.add_argument('--defaults', type=Defaults)  # to ignore model
