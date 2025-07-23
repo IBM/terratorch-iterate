@@ -20,7 +20,7 @@ valid_task_types = type[
     SemanticSegmentationTask | ClassificationTask | PixelwiseRegressionTask
 ]
 
-
+@dataclass
 class TaskTypeEnum(enum.Enum):
     """
     Enum for the type of task to be performed. segmentation, regression or classification.
@@ -46,6 +46,14 @@ class TaskTypeEnum(enum.Enum):
             case _:
                 raise TypeError("Task type does not exist")
 
+
+class IterateBaseDataModule(BaseDataModule):
+
+    def to_dict(self) -> dict:
+        base_data_module = dict()
+        base_data_module["class_path"] = self.dataset_class
+        base_data_module["dict_kwargs"] = self.kwargs
+        return base_data_module
 
 class ParameterTypeEnum(enum.Enum):
     """
@@ -121,8 +129,8 @@ class Task:
     """
 
     name: str
-    type: TaskTypeEnum
-    datamodule: BaseDataModule
+    type: TaskTypeEnum = field(repr=False)
+    datamodule: BaseDataModule = field(repr=False)
     direction: str
     terratorch_task: Optional[dict[str, Any]] = None
     metric: str = "val/loss"

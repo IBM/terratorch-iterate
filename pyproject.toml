@@ -129,6 +129,3 @@ disable_error_code = ["import-untyped"]
 [[tool.mypy.overrides]]
 module = "pytest.*"
 ignore_missing_imports = true
-
-[tool.pytest.ini_options]
-addopts = "--cov=benchmark --cov-report html"
