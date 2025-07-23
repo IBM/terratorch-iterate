@@ -24,7 +24,6 @@ from terratorch.tasks import PixelwiseRegressionTask, SemanticSegmentationTask
 
 from lightning.pytorch.loggers.mlflow import MLFlowLogger
 import time
-import pdb
 from benchmark.benchmark_types import (
     Defaults,
     Task,
@@ -36,6 +35,7 @@ from benchmark.model_fitting import (
     inject_hparams,
     valid_task_types,
 )
+
 
 @ray.remote(num_cpus=8, num_gpus=1)
 def remote_fit(
@@ -102,8 +102,12 @@ def remote_fit(
             raise Exception(str(e))
         #        warnings.warn(str(e))
         #        return None
-        
-        test_metric = "test/" + task.metric.split("/")[1] if '/' in task.metric else 'test_' + task.metric.replace(task.metric.split('_')[0] + "_", '')
+
+        test_metric = (
+            "test/" + task.metric.split("/")[1]
+            if '/' in task.metric
+            else 'test_' + task.metric.replace(task.metric.split('_')[0] + "_", '')
+        )
         mlflow.log_metric(f"test_{test_metric}", metrics[test_metric])
         return metrics[test_metric]
 
@@ -211,7 +215,11 @@ def non_remote_fit(
             raise Exception(str(e))
         #        warnings.warn(str(e))
         #        return None
-        test_metric = "test/" + task.metric.split("/")[1] if '/' in task.metric else 'test_' + task.metric.replace(task.metric.split('_')[0] + "_", '')
+        test_metric = (
+            "test/" + task.metric.split("/")[1]
+            if '/' in task.metric
+            else 'test_' + task.metric.replace(task.metric.split('_')[0] + "_", '')
+        )
         mlflow.log_metric(f"test_{test_metric}", metrics[test_metric])
         return metrics[test_metric]
 
@@ -291,7 +299,7 @@ def rerun_best_from_backbone(
     mlflow.set_tracking_uri(repeated_storage_uri)
     mlflow.set_experiment(repeated_experiment_name)
 
-    #backbone_name = defaults.terratorch_task["model_args"]["backbone"]
+    # backbone_name = defaults.terratorch_task["model_args"]["backbone"]
     with mlflow.start_run(run_name=experiment_name, run_id=None) as run:
         for task in tasks:
             logger.info(f"\n\ntask: {task.name}")
@@ -395,9 +403,7 @@ def rerun_best_from_backbone(
                         output_format="list",
                     )  # type: ignore
 
-                    logger.info(
-                        f"run for task {task.name} seed {seed} complete"
-                    )
+                    logger.info(f"run for task {task.name} seed {seed} complete")
                     if len(seed_run_data) > 0:
                         if seed_run_data[0].info.status != "FINISHED":
                             mlflow.delete_run(seed_run_data[0].info.run_id)
@@ -435,7 +441,9 @@ def rerun_best_from_backbone(
                                 [existing_output, new_data], axis=0
                             )
                             existing_output.reset_index(inplace=True)
-                            existing_output = existing_output.drop(columns=['index', 'level_0'])
+                            existing_output = existing_output.drop(
+                                columns=['index', 'level_0']
+                            )
                             existing_output.to_csv(output_path, index=False)
                         else:
                             new_data.to_csv(output_path, index=False)

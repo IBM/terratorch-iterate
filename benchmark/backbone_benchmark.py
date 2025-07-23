@@ -34,7 +34,6 @@ from benchmark.utils import (
     sync_mlflow_optuna,
     REPEATED_SEEDS_DEFAULT,
 )
-import pdb
 
 direction_type_to_optuna = {"min": "minimize", "max": "maximize"}
 
@@ -140,7 +139,11 @@ def benchmark_backbone_on_task(
                 if hasattr(training_spec.task.datamodule, 'partition')
                 else 'default'
             ),
-            "decoder": str(training_spec.task.terratorch_task["model_args"]["decoder"]) if "decoder" in training_spec.task.terratorch_task["model_args"] else training_spec.task.terratorch_task['model_args']['framework'],
+            "decoder": (
+                str(training_spec.task.terratorch_task["model_args"]["decoder"])
+                if "decoder" in training_spec.task.terratorch_task["model_args"]
+                else training_spec.task.terratorch_task['model_args']['framework']
+            ),
             "task": str(training_spec.task.type).split('.')[-1],
             "backbone": str(
                 training_spec.task.terratorch_task["model_args"]["backbone"]

@@ -28,6 +28,7 @@ DATA_PARTITIONS = {
     "0.01x_train": 1,
 }
 
+
 def unflatten(dictionary: Dict[str, Any]):
     resultDict: Dict = {}
     for key, value in dictionary.items():
@@ -211,7 +212,7 @@ def extract_repeated_experiment_results(
                 if task in task_info:
                     metric_name = task_info[task]
                     metric_name = 'test_test/' + metric_name.split("/")[-1]
-                else:  
+                else:
                     continue
 
                 if metric_name not in run.data.metrics:
@@ -394,7 +395,9 @@ def get_results_and_parameters(
         pd.DataFrame with results and parameters
     """
     if Path(storage_uri).exists() and Path(storage_uri).is_dir():
-        results_dir = Path(storage_uri).parents[0] / "summarized_results" / benchmark_name
+        results_dir = (
+            Path(storage_uri).parents[0] / "summarized_results" / benchmark_name
+        )
     else:
         print("Please use a valid directory for storage_uri")
         raise ValueError
@@ -574,7 +577,7 @@ def check_existing_experiments(
     exp_parent_run_name: str,
     task_names: list,
     n_trials: int,
-    backbone: str
+    backbone: str,
 ) -> Dict[str, Any]:
     """
     checks if experiment has been completed (i.e. both task run and nested individual runs are complete)
@@ -794,6 +797,7 @@ def get_logger(log_level="INFO", log_folder="./experiment_logs") -> logging.Root
     logging.basicConfig(level=logging.CRITICAL)
     return logger
 
+
 def import_custom_modules(
     logger: logging.RootLogger,
     custom_modules_path: str | Path | None = None,
@@ -815,11 +819,16 @@ def import_custom_modules(
                 module = importlib.import_module(module_dir)
                 logger.info(f"Found {custom_modules_path}")
             except ImportError:
-                raise ImportError(f"It was not possible to import modules from {custom_modules_path}.")
+                raise ImportError(
+                    f"It was not possible to import modules from {custom_modules_path}."
+                )
         else:
-            raise ValueError(f"Modules path {custom_modules_path} isn't a directory. Check if you have defined it properly.")
+            raise ValueError(
+                f"Modules path {custom_modules_path} isn't a directory. Check if you have defined it properly."
+            )
     else:
         logger.debug("No custom module is being used.")
+
 
 if __name__ == "__main__":
     logger = get_logger()

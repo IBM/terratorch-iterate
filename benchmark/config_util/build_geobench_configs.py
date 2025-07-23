@@ -10,7 +10,6 @@ from benchmark.benchmark_types import (
     TaskTypeEnum,
 )
 
-GEOBENCH_TEMPLATE = Path(__file__).parent / 'geobenchv2_template.yaml'
 PRITHVI_600M = 'prithvi_600M'
 
 
@@ -139,7 +138,7 @@ def _generate_iterate_config(
     output: Path,
     template: Path,
 ):
-    """ generate the tt-iterate based on yaml files located within the specified directory, based
+    """generate the tt-iterate based on yaml files located within the specified directory, based
     on previously defined template and save the result using specified output filename
 
     Args:
@@ -158,21 +157,20 @@ def _generate_iterate_config(
 
     models = files_df['model'].unique()
 
-    with open(GEOBENCH_TEMPLATE, 'r') as file:
+    with open(template, 'r') as file:
         template = yaml.safe_load(file)
 
+    tasks = list()
     for model in models:
 
-        tmp_df = files_df[files_df['model'].values == model]
+        single_model_df = files_df[files_df['model'].values == model]
 
-        tasks = list()
+        for i in range(single_model_df.shape[0]):
 
-        for i in range(tmp_df.shape[0]):
-
-            with open(tmp_df['file'].values[i], 'r') as file:
+            with open(single_model_df['file'].values[i], 'r') as file:
                 data = yaml.safe_load(file)
 
-            name = tmp_df['dataset'].values[i]
+            name = single_model_df['dataset'].values[i]
 
             model_args: dict = data['model']['init_args']['model_args']
             # framework is an optional field of terratorch config
@@ -204,6 +202,7 @@ def _generate_iterate_config(
 
     with open(output, 'w') as file:
         yaml.dump(template, file)
+        print(f"{output} has been created")
 
 
 @click.command()

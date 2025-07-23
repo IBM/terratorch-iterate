@@ -29,9 +29,9 @@ def test__generate_iterate_config(directory, output, template):
     _generate_iterate_config(
         directory=directory_path, output=output_path, template=template
     )
-    
+
     assert output_path.exists()
-    
+
     config_files = directory_path.glob('**/*.yaml')
     num_tasks = len(list(config_files))
     with open(output_path, "r") as file:

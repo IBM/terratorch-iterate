@@ -4,6 +4,7 @@ from typing import Optional
 from tests.test_benchmark import TEST_CASE_IDS
 import click
 
+
 @click.command()
 @click.option('--test_id', default=None, help='test ID')
 def run_tests(test_id: Optional[str] = None):

@@ -23,6 +23,7 @@ valid_task_types = type[
     | ObjectDetectionTask
 ]
 
+
 @dataclass
 class TaskTypeEnum(enum.Enum):
     """
@@ -60,6 +61,7 @@ class IterateBaseDataModule(BaseDataModule):
         base_data_module["class_path"] = self.dataset_class
         base_data_module["dict_kwargs"] = self.kwargs
         return base_data_module
+
 
 class ParameterTypeEnum(enum.Enum):
     """

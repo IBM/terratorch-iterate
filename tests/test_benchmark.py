@@ -1,5 +1,4 @@
 import itertools
-import logging
 from benchmark.benchmark_types import Defaults, Task, TaskTypeEnum
 import pytest
 from benchmark.backbone_benchmark import benchmark_backbone
