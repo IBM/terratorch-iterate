@@ -287,14 +287,14 @@ def launch_training(
             tracking_uri=storage_uri,
         )
 
-        if not metric.startswith("val/"):
+        if not metric.startswith("val"):
             raise Exception(
-                f"Metric {metric} does not start with `val/`. Please choose a validation metric"
+                f"Metric {metric} does not start with `val`. Please choose a validation metric"
             )
         for_pd_collect = []
         val_metrics_names = []
         for metric_name in client.get_run(run.info.run_id).data.metrics:
-            if metric_name.startswith("val/"):
+            if metric_name.startswith("val"):
                 val_metrics_names.append(metric_name)
                 val_metric_history = client.get_metric_history(
                     run.info.run_id, metric_name

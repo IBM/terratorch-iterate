@@ -93,7 +93,7 @@ def _generate_iterate_config(
     directory: Path,
     output: Path,
     template: Path,
-    task_type: TaskTypeEnum = TaskTypeEnum.classification,
+    task_type: TaskTypeEnum = TaskTypeEnum.object_detection,
     task_direction: str = "max",
     experiment_name: str = "test_geobench2_detection",
 ):

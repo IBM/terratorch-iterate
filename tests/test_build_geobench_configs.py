@@ -8,6 +8,11 @@ from benchmark.config_util.build_geobench_configs import _generate_iterate_confi
     [
         (
             "/Users/ltizzei/Projects/Orgs/IBM/terratorch/examples/confs/geobenchv2_detection",
+            "test_examples_confs_geobenchv2_detection.yaml",
+            "/Users/ltizzei/Projects/Orgs/IBM/terratorch-iterate/benchmark/config_util/geobenchv2_template.yaml",
+        ),
+        (
+            "/Users/ltizzei/Projects/Orgs/IBM/terratorch/examples/confs/geobenchv2_detection",
             "test_v2.yaml",
             "/Users/ltizzei/Projects/Orgs/IBM/terratorch-iterate/benchmark/config_util/geobenchv2_template.yaml",
         ),

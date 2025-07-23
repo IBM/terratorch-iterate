@@ -24,7 +24,7 @@ from terratorch.tasks import PixelwiseRegressionTask, SemanticSegmentationTask
 
 from lightning.pytorch.loggers.mlflow import MLFlowLogger
 import time
-
+import pdb
 from benchmark.benchmark_types import (
     Defaults,
     Task,
@@ -102,7 +102,8 @@ def remote_fit(
             raise Exception(str(e))
         #        warnings.warn(str(e))
         #        return None
-        test_metric = "test/" + task.metric.split("/")[1]
+        
+        test_metric = "test/" + task.metric.split("/")[1] if '/' in task.metric else 'test_' + task.metric.replace(task.metric.split('_')[0] + "_", '')
         mlflow.log_metric(f"test_{test_metric}", metrics[test_metric])
         return metrics[test_metric]
 
@@ -210,7 +211,7 @@ def non_remote_fit(
             raise Exception(str(e))
         #        warnings.warn(str(e))
         #        return None
-        test_metric = "test/" + task.metric.split("/")[1]
+        test_metric = "test/" + task.metric.split("/")[1] if '/' in task.metric else 'test_' + task.metric.replace(task.metric.split('_')[0] + "_", '')
         mlflow.log_metric(f"test_{test_metric}", metrics[test_metric])
         return metrics[test_metric]
 

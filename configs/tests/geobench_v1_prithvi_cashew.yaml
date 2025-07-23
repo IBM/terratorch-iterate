@@ -3,11 +3,11 @@ run_name: test_models_saved_multiple_epochs_no_ray
 defaults:
   trainer_args:
     precision: bf16-mixed # for these new models pretrained with bf16-mixed we should probably finetune with bf16-mixed
-    max_epochs: 10
+    max_epochs: 300
   terratorch_task:
     model_args:
       pretrained: True
-      backbone: prithvi_vit_100
+      backbone: prithvi_eo_v1_100
       backbone_out_indices:
         - 2
         - 5
@@ -17,26 +17,29 @@ defaults:
         file: /dccstor/geofm-finetuning/pretrain_ckpts/v9_no_sea/vit_b/epoch-395-loss-0.0339_clean.pt
     model_factory: PrithviModelFactory
     optimizer: AdamW
+    
 tasks:
-  - name: chesapeake
+  - name: cashew
     type: segmentation
     direction: max
     metric: val/Multiclass_Jaccard_Index
-    early_stop_patience: 10
+    early_stop_patience: 50
     terratorch_task:
       loss: ce
       model_args:
+        num_classes: 7
+        bands:
+          - RED
+          - GREEN
+          - BLUE
+          - NIR_NARROW
+          - SWIR_1
+          - SWIR_2
         decoder: UperNetDecoder
         decoder_channels: 128
         decoder_scale_modules: true
-        bands:
-        - RED
-        - GREEN
-        - BLUE
-        - NIR
-        num_classes: 7
     datamodule:
-      class_path: terratorch.datamodules.MChesapeakeLandcoverNonGeoDataModule
+      class_path: terratorch.datamodules.MBeninSmallHolderCashewsNonGeoDataModule
       init_args:
         partition: 0.10x_train
         train_transform:
@@ -76,12 +79,13 @@ tasks:
           - "RED"
           - "GREEN"
           - "BLUE"
-          - "NIR"
-n_trials: 2
+          - "NIR_NARROW"
+          - "SWIR_1"
+          - "SWIR_2"
+n_trials: 16
 save_models: False
-storage_uri: /dccstor/geofm-finetuning/terratorch-iterate-test/
-ray_storage_path: /dccstor/geofm-finetuning/terratorch-iterate-test/ray_storage
-run_repetitions: 0
+storage_uri: /dccstor/geofm-finetuning/carlosgomes/benchmark
+ray_storage_path: /dccstor/geofm-finetuning/carlosgomes/ray_storage
 optimization_space:
   batch_size:
       - 8
