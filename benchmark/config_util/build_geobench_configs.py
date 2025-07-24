@@ -232,12 +232,17 @@ def generate_iterate_config(
 def generate_tt_iterate_config(directory: str, output: str, template: str, prefix: str):
     directory_path = Path(directory)
     assert directory_path.exists()
+    assert directory_path.is_dir
+    
     template_path = Path(template)
     assert template_path.exists()
-    output_path = Path(".") / output
-    if output_path.exists():
-        print(f"Delete existing {output_path} file")
-        output_path.unlink()
+    assert template_path.is_file
+    
+    output_path = Path(output)
+    assert output_path.exists()
+    assert output_path.is_dir
+
+    assert isinstance(prefix, str), f"Error! {type(prefix)} is not a str"
     generate_iterate_config(
         directory=directory_path,
         output=output_path,

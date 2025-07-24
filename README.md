@@ -153,13 +153,14 @@ Check out instructions in the [docs](./docs/ray.md)
 terratorch-iterate provides an utility to convert terratorch's config file into a single terratorch-iterate's config file. You have to follow these steps:
 
 1. Go to `<$TERRATORCH-ITERATE-HOME>/benchmark/config_util`
-2. Copy all terratorch config files to a directory. Note that all yaml files within this directory will be parsed to generate the terratorch-iterate file, so make sure that only yaml files that you want to be parsed are located in this directory. 
+2. Copy all terratorch config files that you want to be converted into a new directory. Note that all yaml files within this directory will be parsed to generate the terratorch-iterate file, so make sure that only yaml files that you want to be parsed are located in this directory. 
 3. Run build_geobench_configs.py script by specifying 3 input parameters:
      1. `directory`  - Full path to the directory that contains all terratorch config yaml files
-     2. `output` - Name of the config file that will be generated
+     2. `output` - Full path to the directory that will stored the generated files
      3. `template` - Full or relative path to the template file
+     4. `prefix` - prefix to the generated file names, e.g., if set prefix to `my_prefix` then a generated filename could be `my_prefix_Clay.yaml`
    
 For instance, this is an example of such command:
 ```shell
-python3 build_geobench_configs.py --directory /Users/john/terratorch/examples/confs/geobenchv2_detection --output test.yaml --template geobenchv2_template.yaml
+python3 build_geobench_configs.py --directory /Users/john/terratorch/examples/confs/geobenchv2_detection --output /Users/john/terratorch-iterate/benchmark/config_util --template geobenchv2_template.yaml --prefix my_prefix_
 ```
