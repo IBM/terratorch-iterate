@@ -9,6 +9,7 @@ from benchmark.benchmark_types import (
     Task,
     TaskTypeEnum,
 )
+from copy import deepcopy
 
 PRITHVI_600M = 'prithvi_600M'
 
@@ -19,25 +20,29 @@ def _build_dataframe(config_files) -> pd.DataFrame:
     """
     files = list()
     dataset = list()
-    model = list()
+    models = list()
     for config_file in config_files:
-        with open(config_file, 'r') as file:
-            config = yaml.safe_load(file)
-            try:
-                backbone = config["model"]["init_args"]["model_args"]["backbone"]
-                model.append(backbone)
-                ds = config["data"]["init_args"]["cls"]
-                dataset.append(ds)
-                files.append(str(config_file))
-            except KeyError as e:
-                print(f"Error in file: {config_file}\n{e}")
-                raise e
-    return pd.DataFrame(data={"file": files, "model": model, "dataset": dataset})
+        try:
+            # extract dataset name from filename
+            ds = str(config_file).split('/')[-1].split('_')[0]
+            dataset.append(ds)
+            # append file path
+            files.append(str(config_file))
+        except KeyError as e:
+            msg = f"Error in file: {config_file}\n{e}"
+            print(msg)
+            raise KeyError(msg)
+
+    df = pd.DataFrame(data={"file": files, "dataset": dataset})
+    models = [
+        x.split('/')[-1].replace(y + '_', '').replace('.yaml', '')
+        for x, y in zip(df['file'].values, df['dataset'].values)
+    ]
+    df["model"] = models
+    return df
 
 
-def _create_basemodule(
-    data: dict[str, Any], model_filter: str
-) -> IterateBaseDataModule:
+def _create_basemodule(data: dict[str, Any], model_filter: str) -> dict:
     """instantiate IterateBaseDataModule class based on the "data" field of the terratorch config
 
     Args:
@@ -47,19 +52,22 @@ def _create_basemodule(
     Returns:
         IterateBaseDataModule: subclass of torchgeo BaseDataModule that is part of iterate's config
     """
-    dataset_class = data["class_path"]
+    base_module = dict()
+    base_module["class_path"] = data["class_path"]
     if "dict_kwargs" in data.keys():
         dict_kwargs = data["dict_kwargs"]
-        dict_kwargs['batch_size'] = 8 if model_filter != PRITHVI_600M else 4
+        batch_size = 8 if model_filter != PRITHVI_600M else 4
+        dict_kwargs["batch_size"] = batch_size
         dict_kwargs['eval_batch_size'] = 8 if model_filter != PRITHVI_600M else 4
-        return IterateBaseDataModule(dataset_class=dataset_class, **dict_kwargs)
-    else:
-        return IterateBaseDataModule(dataset_class=dataset_class)
+
+        base_module["dict_kwargs"] = dict_kwargs
+    base_module["init_args"] = data["init_args"]
+    return base_module
 
 
 def _create_task(
     name: str,
-    datamodule: IterateBaseDataModule,
+    datamodule: dict,
     metric: str,
     terratorch_task: dict,
     task_type: TaskTypeEnum,
@@ -86,23 +94,18 @@ def _create_task(
     Returns:
         dict: _description_
     """
-    task = Task(
-        name=name,
-        datamodule=datamodule,
-        metric=metric,
-        terratorch_task=terratorch_task,
-        type=task_type,
-        direction=direction,
-        optimization_except=optimization_except,
-        max_run_duration=max_run_duration,
-        early_stop_patience=early_stop_patience,
-        early_prune=early_prune,
-    )
-    task_dict = asdict(task)
-    task_dict["type"] = task_type.value
-    task_dict["datamodule"] = datamodule.to_dict()
-    if len(optimization_except) == 0:
-        del task_dict["optimization_except"]
+
+    task_dict = {
+        "name": name,
+        "datamodule": datamodule,
+        "type": task_type.value,
+        "direction": direction,
+        "metric": metric,
+        "terratorch_task": terratorch_task,
+        "max_run_duration": max_run_duration,
+        "early_stop_patience": early_stop_patience,
+        "early_prune": early_prune,
+    }
 
     return task_dict
 
@@ -133,10 +136,8 @@ def _get_task_direction(template: dict) -> str:
     return direction
 
 
-def _generate_iterate_config(
-    directory: Path,
-    output: Path,
-    template: Path,
+def generate_iterate_config(
+    directory: Path, template: Path, output: Path, prefix: str = "test_"
 ):
     """generate the tt-iterate based on yaml files located within the specified directory, based
     on previously defined template and save the result using specified output filename
@@ -160,8 +161,10 @@ def _generate_iterate_config(
     with open(template, 'r') as file:
         template = yaml.safe_load(file)
 
-    tasks = list()
     for model in models:
+        model_specific_template = deepcopy(template)
+        model_specific_template["experiment_name"] = f"{prefix}_{model}"
+        tasks = list()
 
         single_model_df = files_df[files_df['model'].values == model]
 
@@ -182,8 +185,9 @@ def _generate_iterate_config(
             else:
                 metric = 'val_segm_map'
 
+            # terratorchtask is the data.model.init_args of terratorch config file
             terratorch_task = data['model']['init_args']
-
+            # create datamodule based on data field
             data = data['data']
             datamodule = _create_basemodule(data=data, model_filter=model)
             task_type = _get_task_type(template=template)
@@ -198,11 +202,13 @@ def _generate_iterate_config(
             )
             tasks.append(task)
 
-    template['tasks'] = tasks
-
-    with open(output, 'w') as file:
-        yaml.dump(template, file)
-        print(f"{output} file has been created")
+        model_specific_template['tasks'] = tasks
+        path = output / f"{prefix}_{model}.yaml"
+        if path.exists():
+            path.unlink()
+        with open(path, 'w') as file:
+            yaml.dump(model_specific_template, file)
+            print(f"{path} file has been created")
 
 
 @click.command()
@@ -213,15 +219,20 @@ def _generate_iterate_config(
 )
 @click.option(
     '--output',
-    prompt='Name of the config file that will be generated',
-    help='Name of the config file that will be generated',
+    prompt='Full path to the directory in which the new config files will be stored',
+    help='Full path to the directory in which the new config files will be stored',
 )
 @click.option(
     '--template',
     prompt='Full path to the template file',
     help='Full path to the template file',
 )
-def generate_tt_iterate_config(directory: str, output: str, template: str):
+@click.option(
+    '--prefix',
+    prompt='Prefix of the config filename, e.g., my-config-',
+    help='Prefix of the config filename',
+)
+def generate_tt_iterate_config(directory: str, output: str, template: str, prefix: str):
     directory_path = Path(directory)
     assert directory_path.exists()
     template_path = Path(template)
@@ -230,8 +241,11 @@ def generate_tt_iterate_config(directory: str, output: str, template: str):
     if output_path.exists():
         print(f"Delete existing {output_path} file")
         output_path.unlink()
-    _generate_iterate_config(
-        directory=directory_path, output=output_path, template=template_path
+    generate_iterate_config(
+        directory=directory_path,
+        output=output_path,
+        template=template_path,
+        prefix=prefix,
     )
 
 

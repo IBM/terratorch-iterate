@@ -60,6 +60,8 @@ class IterateBaseDataModule(BaseDataModule):
         base_data_module = dict()
         base_data_module["class_path"] = self.dataset_class
         base_data_module["dict_kwargs"] = self.kwargs
+        base_data_module["dict_kwargs"]["batch_size"] = self.batch_size
+        base_data_module["dict_kwargs"]["num_workers"] = self.num_workers
         return base_data_module
 
 
