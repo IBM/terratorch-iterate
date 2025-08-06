@@ -4,6 +4,7 @@ from typing import Optional
 from tests.test_benchmark import TEST_CASE_IDS
 import click
 
+# rm geobench_v1_prithvi* && bsub -e ~/geobench_v1_prithvi.err -o ~/geobench_v1_prithvi.out -M 40G -gpu "num=1/task:mode=exclusive_process:gmodel=NVIDIAA100_SXM4_80GB" terratorch iterate --hpo --config configs/geobench_v1_prithvi.yaml
 
 @click.command()
 @click.option('--test_id', default=None, help='test ID')
