@@ -73,7 +73,8 @@ dependencies = [
 "configspace",
 "optuna-integration",
 "seaborn",
-"torchgeo"
+"torchgeo",
+"psutil",
 ]
 
 [project.urls]
@@ -100,6 +101,11 @@ test = [
 utility = [
   "geobench"
 ]
+# If you want to catch Nvidia GPU metrics, you also need to install pynvml:
+nvidia = ["pynvml"]
+
+# If you are using AMD/HIP GPUs, install pyrsmi 
+amd = ["pyrsmi"]
 
 [tool.black]
 target-version = ["py310"]
