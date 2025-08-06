@@ -156,6 +156,7 @@ def generate_iterate_config(
     with open(template, 'r') as file:
         template = yaml.safe_load(file)
 
+    # generate one config per model
     for model in models:
         model_specific_template = deepcopy(template)
         model_specific_template["experiment_name"] = f"{prefix}_{model}"
