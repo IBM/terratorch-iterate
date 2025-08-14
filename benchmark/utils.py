@@ -28,7 +28,6 @@ DATA_PARTITIONS = {
     "0.01x_train": 1,
 }
 
-
 def unflatten(dictionary: Dict[str, Any]):
     resultDict: Dict = {}
     for key, value in dictionary.items():
@@ -212,13 +211,15 @@ def extract_repeated_experiment_results(
                 if task in task_info:
                     metric_name = task_info[task]
                     metric_name = 'test_test/' + metric_name.split("/")[-1]
-                else:
+                else:  
                     continue
 
                 if metric_name not in run.data.metrics:
                     logger.info(f"{metric_name} not found in task {task}. Skipping")
                     continue
                 score = run.data.metrics[metric_name]
+                if ("rmse" in metric_name) or ("RMSE" in metric_name):
+                    score = 1-score
                 run_names.append(run.info.run_name)
                 exp_ids.append(experiment_id)
                 exp_names.append(original_experiment_name)
@@ -305,21 +306,31 @@ def extract_parameters(
         if experiment_info is None:
             continue
         experiment_id = experiment_info.experiment_id
-        logger.info(f"\nexperiment_name: {experiment_name} ")
+        logger.info(f"\n\n\nexperiment_name: {experiment_name}.")
         logger.info(f"experiment_id: {experiment_info.experiment_id}")
+
         exp_parent_run_name = f"top_run_{experiment_name}"
         experiment_parent_run_data = client.search_runs(
             experiment_ids=[experiment_id],
             filter_string=f'tags."mlflow.runName" LIKE "{exp_parent_run_name}"',
         )
+
+        logger.info(
+                f"experiment_parent_run_data: {len(experiment_parent_run_data)}"
+            )
+        for run in experiment_parent_run_data:
+            logger.info(
+                f"{run.info.run_id}: {run.info.run_name}"
+            )
         if (len(experiment_parent_run_data) > 1) or (
             len(experiment_parent_run_data) == 0
         ):
-            logger.debug(
+            logger.info(
                 f"The number of parent runs for each experiment should be 1. \
-                         It is currently {len(experiment_parent_run_data)}"
+                         It is currently {len(experiment_parent_run_data)}. Skipping."
             )
-            raise RuntimeError
+            continue
+            #raise RuntimeError
         for run in experiment_parent_run_data:
             exp_parent_run_id = run.info.run_id
 
@@ -333,39 +344,45 @@ def extract_parameters(
 
         for task in task_names:
             logger.info(f"task: {task}")
-            matching_runs = [run for run in runs if run.info.run_name.endswith(task)]  # type: ignore
-            best_params = matching_runs[0].data.params
+            try: #doing try/except because some tasks are incomplete and will raise an error
+                matching_runs = [run for run in runs if run.info.run_name.endswith(task)]  # type: ignore
+                best_params = matching_runs[0].data.params
 
-            # eval them
-            best_params = {k: literal_eval(v) for k, v in best_params.items()}
-            best_params["experiment_name"] = experiment_name
-            best_params["dataset"] = task
-            best_params["decoder"] = matching_runs[0].data.tags["decoder"]
-            best_params["backbone"] = matching_runs[0].data.tags["backbone"]
-            best_params["early_stop_patience"] = matching_runs[0].data.tags[
-                "early_stop_patience"
-            ]
-            best_params["n_trials"] = matching_runs[0].data.tags["n_trials"]
-            best_params["partition_name"] = matching_runs[0].data.tags["partition_name"]
-            best_params["data_percentages"] = DATA_PARTITIONS[
-                best_params["partition_name"]
-            ]
-            if 'optimizer_hparams' in best_params:
-                logger.info(
-                    f"optimizer_hparams: {best_params['optimizer_hparams'].items()}"
-                )
-                optimizer_hparams = {
-                    k: v for k, v in best_params['optimizer_hparams'].items()
-                }
-                best_params.update(optimizer_hparams)
-                del best_params['optimizer_hparams']
-            if 'model_args' in best_params:
-                model_args = {k: v for k, v in best_params['model_args'].items()}
-                best_params.update(model_args)
-                del best_params['model_args']
+                # eval them
+                best_params = {k: literal_eval(v) for k, v in best_params.items()}
+                best_params["experiment_name"] = experiment_name
+                best_params["dataset"] = task
+                best_params["decoder"] = matching_runs[0].data.tags["decoder"] if "decoder" in matching_runs[0].data.tags else "N/A"
+                best_params["backbone"] = matching_runs[0].data.tags["backbone"]
+                best_params["early_stop_patience"] = matching_runs[0].data.tags[
+                    "early_stop_patience"
+                ]
+                best_params["n_trials"] = matching_runs[0].data.tags["n_trials"]
+                best_params["partition_name"] = matching_runs[0].data.tags["partition_name"]
+                best_params["data_percentages"] = DATA_PARTITIONS[
+                    best_params["partition_name"]
+                ]
+                if 'optimizer_hparams' in best_params:
+                    logger.info(
+                        f"optimizer_hparams: {best_params['optimizer_hparams'].items()}"
+                    )
+                    optimizer_hparams = {
+                        k: v for k, v in best_params['optimizer_hparams'].items()
+                    }
+                    best_params.update(optimizer_hparams)
+                    del best_params['optimizer_hparams']
+                if 'model_args' in best_params:
+                    model_args = {k: v for k, v in best_params['model_args'].items()}
+                    best_params.update(model_args)
+                    del best_params['model_args']
 
-            best_params = pd.DataFrame(best_params, index=[0])
-            all_params.append(best_params)
+                best_params = pd.DataFrame(best_params, index=[0])
+                all_params.append(best_params)
+            except Exception as e:
+                logger.info(f"error: {e}.")
+                continue
+
+    logger.info(f"\n all_params: {len(all_params)}.")
     all_params = pd.concat(all_params, axis=0)
     all_params = all_params.reset_index()
     return all_params
@@ -395,11 +412,9 @@ def get_results_and_parameters(
         pd.DataFrame with results and parameters
     """
     if Path(storage_uri).exists() and Path(storage_uri).is_dir():
-        results_dir = (
-            Path(storage_uri).parents[0] / "summarized_results" / benchmark_name
-        )
+        results_dir = Path(storage_uri).parents[0] / "summarized_results" / benchmark_name
     else:
-        print("Please use a valid directory for storage_uri")
+        logger.info("Please use a valid directory for storage_uri")
         raise ValueError
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
@@ -430,6 +445,14 @@ def get_results_and_parameters(
     results_and_parameters.to_csv(
         f"{str(results_dir)}/results_and_parameters.csv", index=False
     )
+
+    visualize_combined_results(
+            combined_results=results_and_parameters,
+            storage_uri=storage_uri,
+            logger=logger,
+            plot_file_base_name=f"multiple_models_{benchmark_name}",
+        )
+
     return results_and_parameters
 
 
@@ -577,7 +600,7 @@ def check_existing_experiments(
     exp_parent_run_name: str,
     task_names: list,
     n_trials: int,
-    backbone: str,
+    backbone: str
 ) -> Dict[str, Any]:
     """
     checks if experiment has been completed (i.e. both task run and nested individual runs are complete)
@@ -700,14 +723,15 @@ def visualize_combined_results(
     save_folder = Path(storage_uri).parents[0] / "visualizations"
     tables_folder = save_folder / "tables"
     plots_folder = save_folder / "plots"
+    normalizer_folder = save_folder / "normalizer"
     if not os.path.exists(tables_folder):
         os.makedirs(tables_folder)
     if not os.path.exists(plots_folder):
         os.makedirs(plots_folder)
+    if not os.path.exists(normalizer_folder):
+        os.makedirs(normalizer_folder)
 
-    combined_results = []
-    model_order = []
-    experiments = list(set(combined_results["experiment_name"]))
+    experiments = list(set(combined_results["experiment_name"].tolist()))
     combined_results = combined_results.rename(columns={"experiment_name": "model"})
     num_experiments = len(experiments)
     fig_size = (num_experiments * 5, 6) if num_experiments >= 3 else (15, 6)
@@ -717,12 +741,11 @@ def visualize_combined_results(
         zip(model_order, sns.color_palette("tab20", n_colors=len(model_order)))
     )
 
-    try:
+    if True:
         # plot raw values
         plot_tools.plot_per_dataset(
             combined_results,
             model_order=model_order,
-            plot_file_base_name=plot_file_base_name,
             model_colors=model_colors,
             metric="test metric",
             sharey=False,
@@ -741,12 +764,13 @@ def visualize_combined_results(
             combined_results,
             metrics=("test metric",),
             benchmark_name=plot_file_base_name,
+            normalizer_folder= normalizer_folder
         )
         bootstrapped_iqm, normalized_combined_results = (
             plot_tools.normalize_bootstrap_and_plot(
-                combined_results,
-                plot_file_base_name=plot_file_base_name,
+                df=combined_results,
                 metric="test metric",
+                normalizer_folder=normalizer_folder,
                 benchmark_name=plot_file_base_name,
                 model_order=model_order,
                 model_colors=model_colors,
@@ -754,7 +778,6 @@ def visualize_combined_results(
                 n_legend_rows=n_legend_rows,
             )
         )
-        # dataset_name_map=dataset_name_map)
 
         plt.savefig(
             str(
@@ -772,7 +795,7 @@ def visualize_combined_results(
                 tables_folder / f"{plot_file_base_name}_normalized_combined_results.csv"
             )
         )
-    except Exception as e:
+    else: #except Exception as e:
         logger.info(f"could not visualize due to error: {e}")
 
 
@@ -797,7 +820,6 @@ def get_logger(log_level="INFO", log_folder="./experiment_logs") -> logging.Root
     logging.basicConfig(level=logging.CRITICAL)
     return logger
 
-
 def import_custom_modules(
     logger: logging.RootLogger,
     custom_modules_path: str | Path | None = None,
@@ -819,16 +841,11 @@ def import_custom_modules(
                 module = importlib.import_module(module_dir)
                 logger.info(f"Found {custom_modules_path}")
             except ImportError:
-                raise ImportError(
-                    f"It was not possible to import modules from {custom_modules_path}."
-                )
+                raise ImportError(f"It was not possible to import modules from {custom_modules_path}.")
         else:
-            raise ValueError(
-                f"Modules path {custom_modules_path} isn't a directory. Check if you have defined it properly."
-            )
+            raise ValueError(f"Modules path {custom_modules_path} isn't a directory. Check if you have defined it properly.")
     else:
         logger.debug("No custom module is being used.")
-
 
 if __name__ == "__main__":
     logger = get_logger()
