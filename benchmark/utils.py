@@ -210,7 +210,9 @@ def extract_repeated_experiment_results(
                 seed = int(run.info.run_name.split("_")[-1])
                 if task in task_info:
                     metric_name = task_info[task]
-                    metric_name = 'test_test/' + metric_name.split("/")[-1]
+                    name_1 = 'test_test/' + metric_name.split("/")[-1]
+                    name_2 = 'test_test_' + task.metric.replace(task.metric.split('_')[0] + "_", '')
+                    metric_name = name_1 if '/' in task.metric else name_2
                 else:  
                     continue
 
