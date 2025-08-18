@@ -41,7 +41,7 @@ def main():
         help="summarize results from repeated experiments",
         action="store_true",
     )
-    parser.add_argument('--list_of_experiment_names', type=list[str])
+    parser.add_argument('--list_of_experiment_names', type=str, nargs=1)
     parser.add_argument('--task_names', type=list[str])
     parser.add_argument('--task_metrics', type=list[str])
     parser.add_argument(
@@ -52,15 +52,17 @@ def main():
 
     args = parser.parse_args()
     paths: List[Any] = args.config
+    assert isinstance(paths, list), f"Error! {paths=} is not a list"
+    assert len(paths) > 0
     path = paths[0]
     config = parser.parse_path(path)
     config_init = parser.instantiate_classes(config)
 
-    summarize = args.summarize
+    summarize: bool = args.summarize
     assert isinstance(summarize, bool), f"Error! {summarize=} is not a bool"
-    repeat = args.repeat
+    repeat: bool = args.repeat
     assert isinstance(repeat, bool), f"Error! {repeat=} is not a bool"
-    hpo = args.hpo
+    hpo: bool = args.hpo
     assert isinstance(hpo, bool), f"Error! {hpo=} is not a bool"
 
     storage_uri = config_init.storage_uri
@@ -79,12 +81,12 @@ def main():
             hpo is False and repeat is False
         ), f"Error! both {repeat=} and {hpo=} must be False when summarizing results from multiple experiments."
 
-        list_of_experiment_names = config_init.list_of_experiment_names
+        experiment_name = config_init.list_of_experiment_names
         assert isinstance(
-            list_of_experiment_names, list
-        ), f"Error! {list_of_experiment_names=} is not a list"
-        for exp in list_of_experiment_names:
-            assert isinstance(exp, str), f"Error! {exp=} is not a str"
+            experiment_name, str
+        ), f"Error! {experiment_name=} is not a str"
+        # for exp in experiment_name:
+        #     assert isinstance(exp, str), f"Error! {exp=} is not a str"
 
         task_names = config_init.task_names
         assert isinstance(task_names, list), f"Error! {task_names=} is not a list"
@@ -108,7 +110,7 @@ def main():
             benchmark_name=benchmark_name,
             storage_uri=storage_uri,
             logger=logger,
-            experiments=list_of_experiment_names,
+            experiments=[experiment_name],
             task_names=task_names,
             num_repetitions=run_repetitions,
             task_metrics=task_metrics,

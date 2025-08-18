@@ -28,6 +28,7 @@ DATA_PARTITIONS = {
     "0.01x_train": 1,
 }
 
+
 def unflatten(dictionary: Dict[str, Any]):
     resultDict: Dict = {}
     for key, value in dictionary.items():
@@ -149,7 +150,7 @@ def extract_repeated_experiment_results(
     task_metrics: list,
     task_names: list,
     num_repetitions: int = REPEATED_SEEDS_DEFAULT,
-) -> (pd.DataFrame, list):
+) -> tuple[pd.DataFrame, list]:
     """
     extracts results of repeated experiments from mlflow logs and saves them in csv
     save list of incomplete experiments to a txt file
@@ -211,9 +212,11 @@ def extract_repeated_experiment_results(
                 if task in task_info:
                     metric_name = task_info[task]
                     name_1 = 'test_test/' + metric_name.split("/")[-1]
-                    name_2 = 'test_test_' + task.metric.replace(task.metric.split('_')[0] + "_", '')
+                    name_2 = 'test_test_' + task.metric.replace(
+                        task.metric.split('_')[0] + "_", ''
+                    )
                     metric_name = name_1 if '/' in task.metric else name_2
-                else:  
+                else:
                     continue
 
                 if metric_name not in run.data.metrics:
@@ -221,7 +224,7 @@ def extract_repeated_experiment_results(
                     continue
                 score = run.data.metrics[metric_name]
                 if ("rmse" in metric_name) or ("RMSE" in metric_name):
-                    score = 1-score
+                    score = 1 - score
                 run_names.append(run.info.run_name)
                 exp_ids.append(experiment_id)
                 exp_names.append(original_experiment_name)
@@ -317,13 +320,9 @@ def extract_parameters(
             filter_string=f'tags."mlflow.runName" LIKE "{exp_parent_run_name}"',
         )
 
-        logger.info(
-                f"experiment_parent_run_data: {len(experiment_parent_run_data)}"
-            )
+        logger.info(f"experiment_parent_run_data: {len(experiment_parent_run_data)}")
         for run in experiment_parent_run_data:
-            logger.info(
-                f"{run.info.run_id}: {run.info.run_name}"
-            )
+            logger.info(f"{run.info.run_id}: {run.info.run_name}")
         if (len(experiment_parent_run_data) > 1) or (
             len(experiment_parent_run_data) == 0
         ):
@@ -332,7 +331,7 @@ def extract_parameters(
                          It is currently {len(experiment_parent_run_data)}. Skipping."
             )
             continue
-            #raise RuntimeError
+            # raise RuntimeError
         for run in experiment_parent_run_data:
             exp_parent_run_id = run.info.run_id
 
@@ -346,7 +345,7 @@ def extract_parameters(
 
         for task in task_names:
             logger.info(f"task: {task}")
-            try: #doing try/except because some tasks are incomplete and will raise an error
+            try:  # doing try/except because some tasks are incomplete and will raise an error
                 matching_runs = [run for run in runs if run.info.run_name.endswith(task)]  # type: ignore
                 best_params = matching_runs[0].data.params
 
@@ -354,13 +353,19 @@ def extract_parameters(
                 best_params = {k: literal_eval(v) for k, v in best_params.items()}
                 best_params["experiment_name"] = experiment_name
                 best_params["dataset"] = task
-                best_params["decoder"] = matching_runs[0].data.tags["decoder"] if "decoder" in matching_runs[0].data.tags else "N/A"
+                best_params["decoder"] = (
+                    matching_runs[0].data.tags["decoder"]
+                    if "decoder" in matching_runs[0].data.tags
+                    else "N/A"
+                )
                 best_params["backbone"] = matching_runs[0].data.tags["backbone"]
                 best_params["early_stop_patience"] = matching_runs[0].data.tags[
                     "early_stop_patience"
                 ]
                 best_params["n_trials"] = matching_runs[0].data.tags["n_trials"]
-                best_params["partition_name"] = matching_runs[0].data.tags["partition_name"]
+                best_params["partition_name"] = matching_runs[0].data.tags[
+                    "partition_name"
+                ]
                 best_params["data_percentages"] = DATA_PARTITIONS[
                     best_params["partition_name"]
                 ]
@@ -414,7 +419,9 @@ def get_results_and_parameters(
         pd.DataFrame with results and parameters
     """
     if Path(storage_uri).exists() and Path(storage_uri).is_dir():
-        results_dir = Path(storage_uri).parents[0] / "summarized_results" / benchmark_name
+        results_dir = (
+            Path(storage_uri).parents[0] / "summarized_results" / benchmark_name
+        )
     else:
         logger.info("Please use a valid directory for storage_uri")
         raise ValueError
@@ -449,11 +456,11 @@ def get_results_and_parameters(
     )
 
     visualize_combined_results(
-            combined_results=results_and_parameters,
-            storage_uri=storage_uri,
-            logger=logger,
-            plot_file_base_name=f"multiple_models_{benchmark_name}",
-        )
+        combined_results=results_and_parameters,
+        storage_uri=storage_uri,
+        logger=logger,
+        plot_file_base_name=f"multiple_models_{benchmark_name}",
+    )
 
     return results_and_parameters
 
@@ -602,7 +609,7 @@ def check_existing_experiments(
     exp_parent_run_name: str,
     task_names: list,
     n_trials: int,
-    backbone: str
+    backbone: str,
 ) -> Dict[str, Any]:
     """
     checks if experiment has been completed (i.e. both task run and nested individual runs are complete)
@@ -743,62 +750,54 @@ def visualize_combined_results(
         zip(model_order, sns.color_palette("tab20", n_colors=len(model_order)))
     )
 
-    if True:
-        # plot raw values
-        plot_tools.plot_per_dataset(
-            combined_results,
+    # plot raw values
+    plot_tools.plot_per_dataset(
+        combined_results,
+        model_order=model_order,
+        model_colors=model_colors,
+        metric="test metric",
+        sharey=False,
+        inner="points",
+        fig_size=fig_size,
+        n_legend_rows=n_legend_rows,
+    )
+    plt.savefig(
+        str(plots_folder / f"violin_{plot_file_base_name}_raw.png"),
+        bbox_inches="tight",
+    )
+    plt.close()
+
+    # plot normalized, bootstrapped values values
+    plot_tools.make_normalizer(
+        combined_results,
+        metrics=("test metric",),
+        benchmark_name=plot_file_base_name,
+        normalizer_folder=normalizer_folder,
+    )
+    bootstrapped_iqm, normalized_combined_results = (
+        plot_tools.normalize_bootstrap_and_plot(
+            df=combined_results,
+            metric="test metric",
+            normalizer_folder=normalizer_folder,
+            benchmark_name=plot_file_base_name,
             model_order=model_order,
             model_colors=model_colors,
-            metric="test metric",
-            sharey=False,
-            inner="points",
             fig_size=fig_size,
             n_legend_rows=n_legend_rows,
         )
-        plt.savefig(
-            str(plots_folder / f"violin_{plot_file_base_name}_raw.png"),
-            bbox_inches="tight",
-        )
-        plt.close()
+    )
 
-        # plot normalized, bootstrapped values values
-        plot_tools.make_normalizer(
-            combined_results,
-            metrics=("test metric",),
-            benchmark_name=plot_file_base_name,
-            normalizer_folder= normalizer_folder
-        )
-        bootstrapped_iqm, normalized_combined_results = (
-            plot_tools.normalize_bootstrap_and_plot(
-                df=combined_results,
-                metric="test metric",
-                normalizer_folder=normalizer_folder,
-                benchmark_name=plot_file_base_name,
-                model_order=model_order,
-                model_colors=model_colors,
-                fig_size=fig_size,
-                n_legend_rows=n_legend_rows,
-            )
-        )
-
-        plt.savefig(
-            str(
-                plots_folder
-                / f"violin_{plot_file_base_name}_normalized_bootstrapped.png"
-            ),
-            bbox_inches="tight",
-        )
-        plt.close()
-        bootstrapped_iqm.to_csv(
-            str(tables_folder / f"{plot_file_base_name}_bootstrapped_iqm.csv")
-        )
-        combined_results.to_csv(
-            str(
-                tables_folder / f"{plot_file_base_name}_normalized_combined_results.csv"
-            )
-        )
-    else: #except Exception as e:
-        logger.info(f"could not visualize due to error: {e}")
+    plt.savefig(
+        str(plots_folder / f"violin_{plot_file_base_name}_normalized_bootstrapped.png"),
+        bbox_inches="tight",
+    )
+    plt.close()
+    bootstrapped_iqm.to_csv(
+        str(tables_folder / f"{plot_file_base_name}_bootstrapped_iqm.csv")
+    )
+    combined_results.to_csv(
+        str(tables_folder / f"{plot_file_base_name}_normalized_combined_results.csv")
+    )
 
 
 def get_logger(log_level="INFO", log_folder="./experiment_logs") -> logging.RootLogger:
@@ -822,6 +821,7 @@ def get_logger(log_level="INFO", log_folder="./experiment_logs") -> logging.Root
     logging.basicConfig(level=logging.CRITICAL)
     return logger
 
+
 def import_custom_modules(
     logger: logging.RootLogger,
     custom_modules_path: str | Path | None = None,
@@ -843,11 +843,16 @@ def import_custom_modules(
                 module = importlib.import_module(module_dir)
                 logger.info(f"Found {custom_modules_path}")
             except ImportError:
-                raise ImportError(f"It was not possible to import modules from {custom_modules_path}.")
+                raise ImportError(
+                    f"It was not possible to import modules from {custom_modules_path}."
+                )
         else:
-            raise ValueError(f"Modules path {custom_modules_path} isn't a directory. Check if you have defined it properly.")
+            raise ValueError(
+                f"Modules path {custom_modules_path} isn't a directory. Check if you have defined it properly."
+            )
     else:
         logger.debug("No custom module is being used.")
+
 
 if __name__ == "__main__":
     logger = get_logger()
