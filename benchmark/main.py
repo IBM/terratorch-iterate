@@ -42,8 +42,12 @@ def main():
         action="store_true",
     )
     # parser.add_argument('--experiment_name', type=str)s
-    parser.add_argument('--task_names', type=list[str], nargs='+', default=[])
-    parser.add_argument('--task_metrics', type=list[str], nargs='+', default=[])
+    parser.add_argument(
+        '--task_names', type=list[str], nargs='+', action='append', default=[]
+    )
+    parser.add_argument(
+        '--task_metrics', type=list[str], nargs='+', action='append', default=[]
+    )
     parser.add_argument(
         '--benchmark_name',
         type=str,
