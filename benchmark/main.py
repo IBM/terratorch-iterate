@@ -89,11 +89,15 @@ def main():
         #     assert isinstance(exp, str), f"Error! {exp=} is not a str"
 
         task_names = config_init.task_names
+        if isinstance(task_names, str):
+            task_names = [task_names]
         assert isinstance(task_names, list), f"Error! {task_names=} is not a list"
         for t in task_names:
             assert isinstance(t, str), f"Error! {t=} is not a str"
 
         task_metrics = config_init.task_metrics
+        if isinstance(task_metrics, str):
+            task_metrics = [task_metrics]
         assert isinstance(task_metrics, list), f"Error! {task_metrics=} is not a list"
         for t in task_metrics:
             assert isinstance(t, str), f"Error! {t=} is not a str"
