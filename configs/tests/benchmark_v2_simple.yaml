@@ -21,7 +21,6 @@ tasks:
   - name: chesapeake
     type: segmentation
     direction: max
-    metric: val/Multiclass_Jaccard_Index
     early_stop_patience: 10
     terratorch_task:
       loss: ce
