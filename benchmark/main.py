@@ -81,7 +81,7 @@ def main():
             hpo is False and repeat is False
         ), f"Error! both {repeat=} and {hpo=} must be False when summarizing results from multiple experiments."
 
-        experiment_name = config_init.list_of_experiment_names
+        experiment_name = config_init.experiment_name
         assert isinstance(
             experiment_name, str
         ), f"Error! {experiment_name=} is not a str"
