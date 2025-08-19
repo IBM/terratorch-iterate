@@ -32,6 +32,7 @@ def run_tests(test_id: Optional[str] = None):
             out_file.unlink(missing_ok=True)
             assert not out_file.exists()
         jbsub = f"bsub -e {err_file} -o {out_file} -M 40G -gpu \"num=1/task:mode=exclusive_process:gmodel=NVIDIAA100_SXM4_80GB\" pytest -vv tests/test_benchmark.py::test_run_benchmark[{tc_id}]"
+        
         cmd = jbsub.split()
         result = subprocess.run(cmd, capture_output=True)
         if result.returncode == 0:
