@@ -34,6 +34,11 @@ def main():
     parser.add_argument('--report_on_best_val', type=bool, default=True)
     parser.add_argument('--test_models', type=bool, default=False)
     parser.add_argument('--bayesian_search', type=bool, default=True)
+    parser.add_argument(
+        '--benchmark_name',
+        type=str,
+        help="name of summarized results file",
+    )
     parser.add_argument("--hpo", help="optimize hyperparameters", action="store_true")
     parser.add_argument("--repeat", help="repeat best experiments", action="store_true")
     parser.add_argument(
@@ -42,17 +47,8 @@ def main():
         action="store_true",
     )
     # parser.add_argument('--experiment_name', type=str)s
-    parser.add_argument(
-        '--task_names', nargs='+', action='append', default=[]
-    )
-    parser.add_argument(
-        '--task_metrics', nargs='+', action='append', default=[]
-    )
-    parser.add_argument(
-        '--benchmark_name',
-        type=str,
-        help="name of summarized results file",
-    )
+    parser.add_argument('--task_names', nargs='+', action='append', default=[])
+    parser.add_argument('--task_metrics', nargs='+', action='append', default=[])
 
     args = parser.parse_args()
     paths: List[Any] = args.config
@@ -78,6 +74,9 @@ def main():
     else:
         logging.config.fileConfig(fname=logger_path, disable_existing_loggers=False)
         logger = logging.getLogger("terratorch-iterate")
+    
+    run_repetitions = config_init.run_repetitions
+    assert isinstance(run_repetitions, int), f"Error! {run_repetitions=} is invalid"
 
     # only summarize results from multiple experiments
     if summarize:
@@ -107,12 +106,10 @@ def main():
             assert isinstance(t, str), f"Error! {t=} is not a str"
 
         benchmark_name = config_init.benchmark_name
+        if benchmark_name is None:
+            benchmark_name = "summary.csv"
         assert isinstance(benchmark_name, str), f"Error! {benchmark_name=} is not a str"
 
-        run_repetitions = config_init.run_repetitions
-        assert (
-            isinstance(run_repetitions, int) and run_repetitions > 0
-        ), f"Error! {run_repetitions=} is invalid"
         # get results and parameters from mlflow logs
         results_and_parameters = get_results_and_parameters(
             benchmark_name=benchmark_name,
@@ -124,119 +121,129 @@ def main():
             task_metrics=task_metrics,
         )
         return
-
-    # optimize hyperparameters and/or do repeated runs for single experiments
-    assert (
-        hpo is True or repeat is True
-    ), f"Error! either {repeat=} or {hpo=} must be True"
-    parent_run_id = args.parent_run_id
-    if parent_run_id is not None:
-        assert isinstance(parent_run_id, str), f"Error! {parent_run_id=} is not a str"
-
-    # validate the objects
-    experiment_name = config_init.experiment_name
-    assert isinstance(experiment_name, str), f"Error! {experiment_name=} is not a str"
-    run_name = config_init.run_name
-    if run_name is not None:
-        assert isinstance(run_name, str), f"Error! {run_name=} is not a str"
-    # validate defaults
-    defaults = config_init.defaults
-    assert isinstance(defaults, Defaults), f"Error! {defaults=} is not a Defaults"
-
-    tasks = config_init.tasks
-    assert isinstance(tasks, list), f"Error! {tasks=} is not a list"
-    for t in tasks:
-        assert isinstance(t, Task), f"Error! {t=} is not a Task"
-        # if there is not specific terratorch_task specified, then use default terratorch_task
-        if t.terratorch_task is None:
-            t.terratorch_task = defaults.terratorch_task
-    # defaults.trainer_args["max_epochs"] = 5
-
-    optimization_space = config_init.optimization_space
-    assert isinstance(
-        optimization_space, dict
-    ), f"Error! {optimization_space=} is not a dict"
-
-    # ray_storage_path is optional
-    ray_storage_path = config_init.ray_storage_path
-    if ray_storage_path is not None:
-        assert isinstance(
-            ray_storage_path, str
-        ), f"Error! {ray_storage_path=} is not a str"
-
-    n_trials = config_init.n_trials
-    assert isinstance(n_trials, int) and n_trials > 0, f"Error! {n_trials=} is invalid"
-    run_repetitions = config_init.run_repetitions
-
-    report_on_best_val = config_init.report_on_best_val
-    assert isinstance(
-        report_on_best_val, bool
-    ), f"Error! {ray_storage_path=} is not a bool"
-
-    save_models = config_init.save_models
-    assert isinstance(save_models, bool), f"Error! {save_models=} is not a bool"
-
-    test_models = config_init.test_models
-    assert isinstance(test_models, bool), f"Error! {test_models=} is not a bool"
-
-    bayesian_search = config_init.bayesian_search
-    assert isinstance(bayesian_search, bool), f"Error! {bayesian_search=} is not a bool"
-
-    # custom_modules_path is optional
-    custom_modules_path = config_init.custom_modules_path
-    if custom_modules_path is not None:
-        assert isinstance(
-            custom_modules_path, str
-        ), f"Error! {custom_modules_path=} is not a str"
-        import_custom_modules(logger=logger, custom_modules_path=custom_modules_path)
-
-    if repeat and not hpo:
-        output = config_init.output_path
-        if output is None:
-            storage_uri_path = Path(storage_uri)
-            assert (
-                storage_uri_path.exists() and storage_uri_path.is_dir()
-            ), f"Error! Unable to create new output_path based on storage_uri_path because the latter does not exist: {storage_uri_path}"
-            output_path = storage_uri_path.parents[0] / "repeated_exp_output_csv"
-            output_path.mkdir(parents=True, exist_ok=True)
-            output_path = output_path / f"{experiment_name}_repeated_exp_mlflow.csv"
-            output = str(output_path)
-
-        logger.info("Rerun best experiments...")
-        rerun_best_from_backbone(
-            logger=logger,
-            parent_run_id=parent_run_id,
-            output_path=str(output_path),
-            defaults=defaults,
-            tasks=tasks,
-            experiment_name=experiment_name,
-            storage_uri=storage_uri,
-            optimization_space=optimization_space,
-            run_repetitions=run_repetitions,
-            save_models=save_models,
-            report_on_best_val=report_on_best_val,
-        )
     else:
-        if not repeat and hpo:
-            run_repetitions = 0
+        # optimize hyperparameters and/or do repeated runs for single experiments
+        assert (
+            hpo is True or repeat is True
+        ), f"Error! either {repeat=} or {hpo=} must be True"
+        parent_run_id = args.parent_run_id
+        if parent_run_id is not None:
+            assert isinstance(
+                parent_run_id, str
+            ), f"Error! {parent_run_id=} is not a str"
 
-        # run_repetitions is an optional parameter
-        benchmark_backbone(
-            defaults=defaults,
-            tasks=tasks,
-            experiment_name=experiment_name,
-            storage_uri=storage_uri,
-            ray_storage_path=ray_storage_path,
-            run_name=run_name,
-            optimization_space=optimization_space,
-            n_trials=n_trials,
-            run_repetitions=run_repetitions,
-            save_models=save_models,
-            report_on_best_val=report_on_best_val,
-            test_models=test_models,
-            bayesian_search=bayesian_search,
-            logger=logger,
-        )
+        # validate the objects
+        experiment_name = config_init.experiment_name
+        assert isinstance(
+            experiment_name, str
+        ), f"Error! {experiment_name=} is not a str"
+        run_name = config_init.run_name
+        if run_name is not None:
+            assert isinstance(run_name, str), f"Error! {run_name=} is not a str"
+        # validate defaults
+        defaults = config_init.defaults
+        assert isinstance(defaults, Defaults), f"Error! {defaults=} is not a Defaults"
+
+        tasks = config_init.tasks
+        assert isinstance(tasks, list), f"Error! {tasks=} is not a list"
+        for t in tasks:
+            assert isinstance(t, Task), f"Error! {t=} is not a Task"
+            # if there is not specific terratorch_task specified, then use default terratorch_task
+            if t.terratorch_task is None:
+                t.terratorch_task = defaults.terratorch_task
+        # defaults.trainer_args["max_epochs"] = 5
+
+        optimization_space = config_init.optimization_space
+        assert isinstance(
+            optimization_space, dict
+        ), f"Error! {optimization_space=} is not a dict"
+
+        # ray_storage_path is optional
+        ray_storage_path = config_init.ray_storage_path
+        if ray_storage_path is not None:
+            assert isinstance(
+                ray_storage_path, str
+            ), f"Error! {ray_storage_path=} is not a str"
+
+        n_trials = config_init.n_trials
+        assert (
+            isinstance(n_trials, int) and n_trials > 0
+        ), f"Error! {n_trials=} is invalid"
+        run_repetitions = config_init.run_repetitions
+
+        report_on_best_val = config_init.report_on_best_val
+        assert isinstance(
+            report_on_best_val, bool
+        ), f"Error! {ray_storage_path=} is not a bool"
+
+        save_models = config_init.save_models
+        assert isinstance(save_models, bool), f"Error! {save_models=} is not a bool"
+
+        test_models = config_init.test_models
+        assert isinstance(test_models, bool), f"Error! {test_models=} is not a bool"
+
+        bayesian_search = config_init.bayesian_search
+        assert isinstance(
+            bayesian_search, bool
+        ), f"Error! {bayesian_search=} is not a bool"
+
+        # custom_modules_path is optional
+        custom_modules_path = config_init.custom_modules_path
+        if custom_modules_path is not None:
+            assert isinstance(
+                custom_modules_path, str
+            ), f"Error! {custom_modules_path=} is not a str"
+            import_custom_modules(
+                logger=logger, custom_modules_path=custom_modules_path
+            )
+
+        if repeat and not hpo:
+            output = config_init.output_path
+            if output is None:
+                storage_uri_path = Path(storage_uri)
+                assert (
+                    storage_uri_path.exists() and storage_uri_path.is_dir()
+                ), f"Error! Unable to create new output_path based on storage_uri_path because the latter does not exist: {storage_uri_path}"
+                output_path = storage_uri_path.parents[0] / "repeated_exp_output_csv"
+                output_path.mkdir(parents=True, exist_ok=True)
+                output_path = output_path / f"{experiment_name}_repeated_exp_mlflow.csv"
+                output = str(output_path)
+
+            logger.info("Rerun best experiments...")
+            rerun_best_from_backbone(
+                logger=logger,
+                parent_run_id=parent_run_id,
+                output_path=str(output_path),
+                defaults=defaults,
+                tasks=tasks,
+                experiment_name=experiment_name,
+                storage_uri=storage_uri,
+                optimization_space=optimization_space,
+                run_repetitions=run_repetitions,
+                save_models=save_models,
+                report_on_best_val=report_on_best_val,
+            )
+        else:
+            if not repeat and hpo:
+                run_repetitions = 0
+
+            # run_repetitions is an optional parameter
+            benchmark_backbone(
+                defaults=defaults,
+                tasks=tasks,
+                experiment_name=experiment_name,
+                storage_uri=storage_uri,
+                ray_storage_path=ray_storage_path,
+                run_name=run_name,
+                optimization_space=optimization_space,
+                n_trials=n_trials,
+                run_repetitions=run_repetitions,
+                save_models=save_models,
+                report_on_best_val=report_on_best_val,
+                test_models=test_models,
+                bayesian_search=bayesian_search,
+                logger=logger,
+            )
 
 
 if __name__ == "__main__":
