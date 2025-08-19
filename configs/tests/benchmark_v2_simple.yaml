@@ -78,8 +78,7 @@ tasks:
           - "NIR"
 n_trials: 2
 save_models: False
-storage_uri: /Users/ltizzei/Projects/Orgs/IBM/terratorch-iterate
-# storage_uri: /dccstor/geofm-finetuning/terratorch-iterate-test/
+storage_uri: /dccstor/geofm-finetuning/terratorch-iterate-test/
 ray_storage_path: /dccstor/geofm-finetuning/terratorch-iterate-test/ray_storage
 run_repetitions: 0
 optimization_space:
