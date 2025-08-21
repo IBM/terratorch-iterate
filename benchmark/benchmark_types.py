@@ -39,16 +39,16 @@ class TaskTypeEnum(enum.Enum):
     def get_class_from_enum(
         self,
     ) -> valid_task_types:
-        match self:
-            case TaskTypeEnum.segmentation:
+        match self.value:
+            case TaskTypeEnum.segmentation.value:
                 return SemanticSegmentationTask
-            case TaskTypeEnum.regression:
+            case TaskTypeEnum.regression.value:
                 return PixelwiseRegressionTask
-            case TaskTypeEnum.classification:
+            case TaskTypeEnum.classification.value:
                 return ClassificationTask
-            case TaskTypeEnum.multilabel_classification:
+            case TaskTypeEnum.multilabel_classification.value:
                 return MultiLabelClassificationTask
-            case TaskTypeEnum.object_detection:
+            case TaskTypeEnum.object_detection.value:
                 return ObjectDetectionTask
             case _:
                 raise TypeError("Task type does not exist")
