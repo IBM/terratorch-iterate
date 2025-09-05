@@ -221,10 +221,10 @@ def benchmark_backbone(
     base = Path(storage_uri).parents[0]
     PATH_TO_JOB_TRACKING = base / "job_progress_tracking"
     REPEATED_EXP_FOLDER = base / "repeated_exp_output_csv"
-    
+
     # https://mlflow.org/docs/latest/ml/tracking/system-metrics/#using-the-environment-variable-to-control-system-metrics-logging
     if os.getenv("MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING") is None:
-        os.environ["MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING"] = "true" 
+        os.environ["MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING"] = "true"
 
     if logger is None:
         logger = get_logger(log_folder=str(base / "job_logs"))
@@ -256,6 +256,11 @@ def benchmark_backbone(
     completed_task_run_names = []
     run_hpo = True
     task_run_to_id_match = {}
+
+    # initialize variables that are returned
+    experiment_id = None
+    finished_run_id = None
+
     if continue_existing_experiment:
         # find status of existing runs, and delete incomplete runs except one with the most complete tasks
         existing_experiments = check_existing_experiments(
