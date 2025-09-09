@@ -174,11 +174,8 @@ def main():
     paths: List[Any] = args.config
     if paths is None:
         msg = """
-        usage: terratorch [-h] [--defaults CONFIG] [--defaults.trainer_args TRAINER_ARGS] [--defaults.terratorch_task TERRATORCH_TASK] [--optimization_space OPTIMIZATION_SPACE] [--experiment_name EXPERIMENT_NAME]
-                  [--run_name RUN_NAME] [--save_models {true,false}] [--storage_uri STORAGE_URI] [--ray_storage_path RAY_STORAGE_PATH] [--n_trials N_TRIALS] [--run_repetitions RUN_REPETITIONS] [--tasks TASKS]
-                  [--parent_run_id PARENT_RUN_ID] [--output_path OUTPUT_PATH] [--logger LOGGER] [--config CONFIG] [--custom_modules_path CUSTOM_MODULES_PATH] [--report_on_best_val {true,false}]
-                  [--test_models {true,false}] [--bayesian_search {true,false}] [--hpo] [--repeat] [--summarize] [--list_of_experiment_names LIST_OF_EXPERIMENT_NAMES] [--task_names TASK_NAMES]
-                  [--task_metrics TASK_METRICS] [--benchmark_name BENCHMARK_NAME]
+        Error: config argument has not been passed
+        usage: terratorch [-h] [--hpo] [--repeat] [--summarize] [--config CONFIG] 
         """
         print(msg)
     else:
