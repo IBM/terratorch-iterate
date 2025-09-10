@@ -9,13 +9,14 @@ from deepdiff import DeepDiff
     "input_dir, output_dir, template, prefix",
     [
         (
+            # terratorch branch geobench_v2_od
             "/Users/ltizzei/Projects/Orgs/IBM/terratorch/examples/confs/geobenchv2_detection",
-            "/Users/ltizzei/Projects/Orgs/IBM/terratorch-iterate/benchmark/config_util/",
+            "/Users/ltizzei/Projects/Orgs/IBM/terratorch-iterate/tests/test_config_util",
             "/Users/ltizzei/Projects/Orgs/IBM/terratorch-iterate/benchmark/config_util/geobenchv2_template.yaml",
             "test_examples_confs_geobenchv2_detection",
         ),
         (
-            "/Users/ltizzei/Projects/Orgs/IBM/terratorch-iterate/tests/test_config_util",
+            "/Users/ltizzei/Projects/Orgs/IBM/terratorch/tests/resources/configs",
             "/Users/ltizzei/Projects/Orgs/IBM/terratorch-iterate/tests/test_config_util",
             "/Users/ltizzei/Projects/Orgs/IBM/terratorch-iterate/benchmark/config_util/geobenchv2_template.yaml",
             "test_config_util_",
@@ -29,17 +30,23 @@ def test__generate_iterate_config(input_dir, output_dir, template, prefix):
     output_path = Path(output_dir)
     assert output_path.exists()
     assert output_path.is_dir()
+    # warning! delete all files of the output dir
+    for item in output_path.iterdir():
+        if item.is_file():
+            item.unlink()
 
     generate_iterate_config(
-        input_dir=input_dir_path, output_dir=output_path, template=template, prefix=prefix
+        input_dir=input_dir_path,
+        output_dir=output_path,
+        template=template,
+        prefix=prefix,
     )
-
-    assert output_path.exists()
+    generated_config_files = list(output_path.glob(f'**/{prefix}*.yaml'))
+    assert len(generated_config_files) > 0
 
     oracle_config_files = [
-        f for f in output_path.glob(f'**/geobench*.yaml') if "template" not in str(f)
+        f for f in input_dir_path.glob(f'**/geobench*.yaml') if "template" not in str(f)
     ]
-    generated_config_files = output_path.glob(f'**/{prefix}*.yaml')
     for gen_config_file in generated_config_files:
         end_gen_config_filename = gen_config_file.name.replace(prefix, "")
         for oracle_config_file in oracle_config_files:
