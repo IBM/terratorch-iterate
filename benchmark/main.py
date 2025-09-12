@@ -149,7 +149,7 @@ def main():
     parser.add_argument("--parent_run_id", type=str)
     parser.add_argument("--output_path", type=str)
     parser.add_argument("--logger", type=str)
-    parser.add_argument("--config", action="store")
+    parser.add_argument("--config", type=str)
     parser.add_argument('--custom_modules_path', type=str)
     parser.add_argument('--report_on_best_val', type=bool, default=True)
     parser.add_argument('--test_models', type=bool, default=False)
@@ -171,18 +171,18 @@ def main():
     )
 
     args = parser.parse_args()
-    paths: List[Any] = args.config
-    if paths is None:
+    config_path: str | None = args.config
+    if config_path is None:
         msg = """
         Error: config argument has not been passed
         usage: terratorch [-h] [--hpo] [--repeat] [--summarize] [--config CONFIG] 
         """
         print(msg)
     else:
-        assert isinstance(paths, list), f"Error! Unexpected config type: {paths}"
-        assert len(paths) > 0, f"Error! empty list of config"
-        path = paths[0]
-        config = parser.parse_path(path)
+        assert isinstance(
+            config_path, str
+        ), f"Error! Unexpected config type: {config_path}"
+        config = parser.parse_path(config_path)
         config_init: Namespace = parser.instantiate_classes(config)
 
         summarize: bool = args.summarize
