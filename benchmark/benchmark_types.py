@@ -7,6 +7,7 @@ import copy
 import enum
 from dataclasses import dataclass, field, replace
 from typing import Any, Optional, Union
+from lightning import LightningDataModule
 from terratorch.tasks import (
     ClassificationTask,
     MultiLabelClassificationTask,
@@ -14,7 +15,7 @@ from terratorch.tasks import (
     SemanticSegmentationTask,
     ObjectDetectionTask,
 )
-from torchgeo.datamodules import BaseDataModule
+
 
 valid_task_types = type[
     SemanticSegmentationTask
@@ -117,7 +118,7 @@ class Task:
         name (str): Name for this task
         type (TaskTypeEnum): Type of task.
         terratorch_task (dict): Arguments for the Terratorch Task.
-        datamodule (BaseDataModule): Datamodule to be used.
+        datamodule (LightningDataModule): Datamodule to be used.
         direction (str): One of min or max. Direction to optimize the metric in.
         metric (str): Metric to be optimized. Defaults to "val/loss".
         early_prune (bool): Whether to prune unpromising runs early. Defaults to False.
@@ -129,7 +130,7 @@ class Task:
 
     name: str
     type: TaskTypeEnum = field(repr=False)
-    datamodule: BaseDataModule = field(repr=False)
+    datamodule: LightningDataModule = field(repr=False)
     direction: str
     terratorch_task: Optional[dict[str, Any]] = None
     metric: str = "val/loss"

@@ -18,7 +18,7 @@ import pandas as pd
 import lightning.pytorch as pl
 import mlflow
 import optuna
-from lightning import Callback, Trainer
+from lightning import Callback, LightningDataModule, Trainer
 from lightning.pytorch.callbacks import (
     EarlyStopping,
     LearningRateMonitor,
@@ -41,7 +41,6 @@ from ray.tune.schedulers.hb_bohb import HyperBandForBOHB
 from ray.tune.search import SearchAlgorithm, Searcher
 from ray.tune.search.bohb import TuneBOHB
 from terratorch.tasks import PixelwiseRegressionTask, SemanticSegmentationTask
-from torchgeo.datamodules import BaseDataModule
 from torchgeo.trainers import BaseTask
 
 from benchmark.benchmark_types import (
@@ -243,7 +242,7 @@ single node - optuna
 def launch_training(
     trainer: Trainer,
     task: BaseTask,
-    datamodule: BaseDataModule,
+    datamodule: LightningDataModule,
     run_name: str,
     experiment_name: str,
     metric: str,
