@@ -13,7 +13,7 @@ include = ["benchmark*"]
 [project]
 
 name = "terratorch-iterate"
-version = "0.1.4"
+version = "0.1.5"
 requires-python = ">= 3.9"
 description = "A terratorch's plugin for benchmarking and hyperparameter optimization"
 authors = [
@@ -38,7 +38,7 @@ readme = "README.md"
 
 dependencies = [
 # ObjectDetection is not supported on terratorch==1.0.2, so iterate relies on main branch
-"terratorch @ git+https://github.com/IBM/terratorch.git", 
+"terratorch", 
 # "terratorch",
 # requests>=2.32.0 because of this vulnerability https://github.com/psf/requests/security/advisories/GHSA-9wx4-h78v-vm56
 "requests>=2.32.0",

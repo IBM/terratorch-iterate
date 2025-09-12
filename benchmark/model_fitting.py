@@ -34,18 +34,7 @@ from ray.air import CheckpointConfig, RunConfig
 from ray.train._internal.storage import StorageContext
 from ray.tune.experiment import Trial
 
-# for ddp in the future if required
-# import ray
-# from ray.train import report
-# from ray import train
-# from ray.air import CheckpointConfig, ScalingConfig
-# from ray.train.lightning import (
-#     RayDeepSpeedStrategy,
-#     RayLightningEnvironment,
-#     RayTrainReportCallback,
-#     prepare_trainer,
-# )
-# from ray.train.torch import TorchTrainer
+
 from ray.tune.integration.pytorch_lightning import TuneReportCheckpointCallback
 from ray.tune.schedulers import FIFOScheduler, TrialScheduler
 from ray.tune.schedulers.hb_bohb import HyperBandForBOHB
@@ -63,6 +52,12 @@ from benchmark.benchmark_types import (
     recursive_merge,
     valid_task_types,
 )
+
+
+from benchmark.utils import get_logger
+
+LOGGER = get_logger()
+
 
 os.environ["TUNE_DISABLE_AUTO_CALLBACK_LOGGERS"] = (
     "1"  # disable tune loggers, will add csv and json manually. If this is not here, it will log to tensorboard automatically
@@ -258,7 +253,9 @@ def launch_training(
     test_models: bool,
     delete_models_after_testing: bool,
 ) -> float:
-
+    LOGGER.info(
+        f"launch_training {trainer=} {task=} {datamodule=} {run_name=} {experiment_name=} {metric=} {storage_uri=} {direction=}"
+    )
     with mlflow.start_run(run_name=run_name, nested=True) as run:
         mlflow.set_tag("mlflow.parentRunId", parent_run_id)
         # explicitly log batch_size. Since it is not a model param, it will not be logged
