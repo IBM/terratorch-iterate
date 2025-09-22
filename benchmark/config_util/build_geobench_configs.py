@@ -71,7 +71,7 @@ def _create_task(
     direction: str,
     max_run_duration: str | None = None,
     early_stop_patience: int | None = None,
-    early_prune: bool = False,
+    early_prune: bool | None = None,
 ) -> dict:
     """instantiate Task dataclass and convert it to dict
 
@@ -97,10 +97,15 @@ def _create_task(
         "direction": direction,
         "metric": metric,
         "terratorch_task": terratorch_task,
-        "max_run_duration": max_run_duration,
-        "early_stop_patience": early_stop_patience,
-        "early_prune": early_prune,
     }
+    # set optional fields if they are not None
+    for k, v in [
+        ("max_run_duration", max_run_duration),
+        ("early_stop_patience", early_stop_patience),
+        ("early_prune", early_prune),
+    ]:
+        if v is not None:
+            task_dict[k] = v
 
     return task_dict
 
@@ -179,7 +184,7 @@ def generate_iterate_config(
             ):
                 metric = 'val_map'
             else:
-                metric = 'val_segm_map'
+                metric = 'val/loss'
 
             # terratorchtask is the data.model.init_args of terratorch config file
             terratorch_task = data['model']['init_args']
