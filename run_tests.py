@@ -7,12 +7,13 @@ import click
 # rm geobench_v1_prithvi* && bsub -e ~/geobench_v1_prithvi.err -o ~/geobench_v1_prithvi.out -M 40G -gpu "num=1/task:mode=exclusive_process:gmodel=NVIDIAA100_SXM4_80GB" terratorch iterate --hpo --config configs/geobench_v1_prithvi.yaml
 
 
-def submit_job(err_file: str, out_file: str, tc_id: str | None, config: str | None):
+def submit_job(err_file: str, out_file: str, tc_id: str | None = None, config: str | None = None):
     if tc_id is not None:
         jbsub = f"bsub -e {err_file} -o {out_file} -M 40G -gpu \"num=1/task:mode=exclusive_process:gmodel=NVIDIAA100_SXM4_80GB\" pytest -vv tests/test_benchmark.py::test_run_benchmark[{tc_id}]"
-    else:
+    elif config is not None:
         jbsub = f"bsub -e {err_file} -o {out_file} -M 40G -gpu \"num=1/task:mode=exclusive_process:gmodel=NVIDIAA100_SXM4_80GB\" terratorch iterate --hpo --config {config}"
-
+    else:
+        raise ValueError("Error! Either tc_id or config must be not None")
     cmd = jbsub.split()
     result = subprocess.run(cmd, capture_output=True)
     if result.returncode == 0:
