@@ -18,6 +18,13 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
             "test_config_util_",
             "./configs/tests/terratorch-iterate-configs/test_case_01/oracle/convnext_LM_iterate.yaml",
         ),
+        (
+            "./configs/tests/terratorch_configs/test_case_02",
+            "./configs/tests/terratorch-iterate-configs/test_case_02",
+            "./configs/templates/template.yaml",
+            "test_config_util_",
+            None,
+        ),
     ],
 )
 def test__generate_iterate_config(
@@ -26,7 +33,7 @@ def test__generate_iterate_config(
     # Get the absolute path of the current script file
     script_path = Path(__file__).resolve()
 
-    # Get the home directory 
+    # Get the home directory
     repo_home_dir = script_path.parent.parent
     input_dir_path: Path = repo_home_dir / input_dir
     assert input_dir_path.exists()
