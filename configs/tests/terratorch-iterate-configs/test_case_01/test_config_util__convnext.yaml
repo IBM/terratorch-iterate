@@ -15,7 +15,6 @@ defaults:
       patience: 5
       threshold: 0.0001
       threshold_mode: rel
-      verbose: deprecated
   trainer_args:
     log_every_n_steps: 1
     max_epochs: 5

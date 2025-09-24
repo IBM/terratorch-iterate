@@ -154,4 +154,3 @@ lr_scheduler:
     cooldown: 0
     min_lr: 0.0
     eps: 1.0e-08
-    verbose: deprecated

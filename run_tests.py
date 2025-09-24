@@ -13,8 +13,24 @@ def cli():
 
 
 def submit_job(
-    err_file: str, out_file: str, tc_id: str | None = None, config: str | None = None
+    stderr_file: str,
+    stdout_file: str,
+    tc_id: str | None = None,
+    config: str | None = None,
 ):
+    err_file = Path.home() / stderr_file
+    # delete file if it exists
+    if err_file.exists():
+        print(f"Delete file {err_file}")
+        err_file.unlink(missing_ok=True)
+        assert not err_file.exists()
+
+    out_file = Path.home() / stdout_file
+    # delete file if it exists
+    if out_file.exists():
+        print(f"Delete file {out_file}")
+        out_file.unlink(missing_ok=True)
+        assert not out_file.exists()
     if tc_id is not None:
         jbsub = f"bsub -e {err_file} -o {out_file} -M 40G -gpu \"num=1/task:mode=exclusive_process:gmodel=NVIDIAA100_SXM4_80GB\" pytest -vv tests/test_benchmark.py::test_run_benchmark[{tc_id}]"
     elif config is not None:
@@ -44,20 +60,7 @@ def run_tests(test_id: Optional[str] = None):
         stderr_file = f"test-iterate-test_benchmark-{tc_id}.err"
         stdout_file = f"test-iterate-test_benchmark-{tc_id}.out"
 
-        err_file = Path.home() / stderr_file
-        # delete file if it exists
-        if err_file.exists():
-            print(f"Delete file {err_file}")
-            err_file.unlink(missing_ok=True)
-            assert not err_file.exists()
-        out_file = Path.home() / stdout_file
-
-        # delete file if it exists
-        if out_file.exists():
-            print(f"Delete file {out_file}")
-            out_file.unlink(missing_ok=True)
-            assert not out_file.exists()
-        submit_job(err_file=err_file, out_file=out_file, tc_id=tc_id)
+        submit_job(stderr_file=stderr_file, stdout_file=stdout_file, tc_id=tc_id)
 
 
 @click.command()
@@ -69,7 +72,7 @@ def run_job(config: str):
     stem = config_path.stem
     err_file = f"{stem}.err"
     out_file = f"{stem}.out"
-    submit_job(err_file=err_file, out_file=out_file, config=config)
+    submit_job(stdout_file=out_file, stderr_file=err_file, config=config)
 
 
 cli.add_command(run_job)
