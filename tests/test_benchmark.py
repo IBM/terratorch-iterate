@@ -1,4 +1,5 @@
 import itertools
+import shutil
 from benchmark.benchmark_types import Defaults, Task, TaskTypeEnum
 import pytest
 from benchmark.backbone_benchmark import benchmark_backbone
@@ -228,7 +229,7 @@ def test_run_benchmark(
 def test_run_benchmark_no_specific_terratorch_task(
     config: str, continue_existing_experiment: bool, test_models: bool
 ):
-
+    delete_new_dirs = True
     path = os.path.join(os.getcwd(), config)
     config_path = Path(path)
     assert (
@@ -318,6 +319,14 @@ def test_run_benchmark_no_specific_terratorch_task(
         finished_run_id=finished_run_id,
     )
 
+    if storage_uri_path.is_dir() and delete_new_dirs:
+        try:
+            shutil.rmtree(storage_uri_path)
+            print(f"Directory '{storage_uri_path}' and its contents removed successfully.")
+        except OSError as e:
+            print(f"Error: {storage_uri_path} : {e.strerror}")
+    else:
+        print(f"Directory '{storage_uri_path}' does not exist.")
 
 def validate_results(experiment_name: str, storage_uri: str, finished_run_id: str):
     # get the most recent modified directory

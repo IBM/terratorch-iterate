@@ -57,8 +57,8 @@ def run_tests(test_id: Optional[str] = None):
         test_ids = [test_id]
     for tc_id in test_ids:
         print(f"Running test case: tests/test_benchmark.py::test_run_benchmark {tc_id}")
-        stderr_file = f"test-iterate-test_benchmark-{tc_id}.err"
-        stdout_file = f"test-iterate-test_benchmark-{tc_id}.out"
+        stderr_file = f"test-{tc_id}.err"
+        stdout_file = f"test-{tc_id}.out"
 
         submit_job(stderr_file=stderr_file, stdout_file=stdout_file, tc_id=tc_id)
 
