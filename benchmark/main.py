@@ -156,6 +156,11 @@ def main():
     parser.add_argument("--hpo", help="optimize hyperparameters", action="store_true")
     parser.add_argument("--repeat", help="repeat best experiments", action="store_true")
     parser.add_argument(
+        "--continue_existing_experiments",
+        help="continue existing experiments",
+        action="store_true",
+    )
+    parser.add_argument(
         "--summarize",
         help="summarize results from repeated experiments",
         action="store_true",
@@ -191,11 +196,16 @@ def main():
         hpo = args.hpo
         assert isinstance(hpo, bool), f"Error! {hpo=} is not a bool"
 
+        continue_existing_experiments: bool = args.continue_existing_experiments
+        assert isinstance(
+            continue_existing_experiments, bool
+        ), f"Error! {continue_existing_experiments=} is not a bool"
+
         storage_uri = config_init.storage_uri
         assert isinstance(storage_uri, str), f"Error! {storage_uri=} is not a str"
         # handling relative paths
         if storage_uri.startswith(".") or storage_uri.startswith(".."):
-            repo_home_dir = Path(__file__).parent.parent 
+            repo_home_dir = Path(__file__).parent.parent
             abs_path = repo_home_dir / storage_uri
             storage_uri = str(abs_path.resolve())
 
@@ -321,6 +331,7 @@ def main():
                 report_on_best_val=report_on_best_val,
                 test_models=test_models,
                 bayesian_search=bayesian_search,
+                continue_existing_experiment=continue_existing_experiments,
                 logger=logger,
             )
             return experiment_info
