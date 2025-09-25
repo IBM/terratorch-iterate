@@ -20,15 +20,15 @@ INPUT_TEST_MAIN = list(
 
 def get_test_ids() -> list[str]:
     test_case_ids = list()
-    for config, cee, tm in INPUT_TEST_MAIN:
+    for hpo, config in INPUT_TEST_MAIN:
         filename = config.split("/")[-1].replace(".yaml", "")
-        tid = f"{filename}_{cee}_{tm}"
+        tid = f"{filename}_hpo_{hpo}"
         test_case_ids.append(tid)
     return test_case_ids
 
 
 @pytest.mark.parametrize(
-    "config, continue_existing_experiment, test_models",
+    "hpo, config",
     INPUT_TEST_MAIN,
     ids=get_test_ids(),
 )
