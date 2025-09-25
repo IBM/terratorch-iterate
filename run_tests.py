@@ -1,7 +1,7 @@
 import subprocess
 from pathlib import Path
 from typing import Optional
-from tests.test_benchmark import get_test_ids
+from tests.integration.test_main import get_test_ids
 import click
 
 # rm geobench_v1_prithvi* && bsub -e ~/geobench_v1_prithvi.err -o ~/geobench_v1_prithvi.out -M 40G -gpu "num=1/task:mode=exclusive_process:gmodel=NVIDIAA100_SXM4_80GB" terratorch iterate --hpo --config configs/geobench_v1_prithvi.yaml
@@ -42,7 +42,7 @@ def submit_job(
         out_file.unlink(missing_ok=True)
         assert not out_file.exists()
     if tc_id is not None:
-        jbsub = f"bsub -e {err_file} -o {out_file} -M 40G -gpu \"num=1/task:mode=exclusive_process:gmodel=NVIDIAA100_SXM4_80GB\" pytest -vv tests/test_benchmark.py::test_run_benchmark[{tc_id}]"
+        jbsub = f"bsub -e {err_file} -o {out_file} -M 40G -gpu \"num=1/task:mode=exclusive_process:gmodel=NVIDIAA100_SXM4_80GB\" pytest -vv tests/integration/test_main.py::test_main[{tc_id}]"
     elif config is not None:
         jbsub = f"bsub -e {err_file} -o {out_file} -M 40G -gpu \"num=1/task:mode=exclusive_process:gmodel=NVIDIAA100_SXM4_80GB\" terratorch iterate --hpo --config {config}"
     else:
