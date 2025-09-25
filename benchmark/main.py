@@ -307,7 +307,7 @@ def main():
                 run_repetitions = 0
 
             # run_repetitions is an optional parameter
-            benchmark_backbone(
+            experiment_info: dict = benchmark_backbone(
                 defaults=defaults,
                 tasks=tasks,
                 experiment_name=experiment_name,
@@ -323,6 +323,7 @@ def main():
                 bayesian_search=bayesian_search,
                 logger=logger,
             )
+            return experiment_info
 
 
 if __name__ == "__main__":
