@@ -412,6 +412,7 @@ def benchmark_backbone(
             table_columns=table_columns,
             backbone=backbone,
             PATH_TO_JOB_TRACKING=PATH_TO_JOB_TRACKING,
+            optimization_space=optimization_space,
             logger=logger,
         )
         logger.info("HPO complete")
