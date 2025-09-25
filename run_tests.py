@@ -12,6 +12,11 @@ LOGS_DIR = REPO_HOME_DIR / "logs"
 if not LOGS_DIR.exists():
     LOGS_DIR.mkdir()
 
+# Delete all files in logs dir
+for item in LOGS_DIR.iterdir():
+    if item.is_file():
+        item.unlink()  
+
 @click.group()
 def cli():
     pass
