@@ -74,7 +74,7 @@ def test_main(
     storage_uri: str = config_data["storage_uri"]
     # handling relative paths
     if storage_uri.startswith(".") or storage_uri.startswith(".."):
-        repo_home_dir = Path(__file__).parent.parent 
+        repo_home_dir = Path(__file__).parent.parent.parent 
         abs_path = repo_home_dir / storage_uri
         storage_uri = str(abs_path.resolve())
     experiment_name = config_data["experiment_name"]
