@@ -25,6 +25,13 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
             "test_config_util_",
             None,
         ),
+        (
+            "./configs/tests/terratorch_configs/test_case_03",
+            "./configs/tests/terratorch-iterate-configs/test_case_03",
+            "./configs/templates/template.yaml",
+            "test_config_util_",
+            None,
+        ),
     ],
 )
 def test__generate_iterate_config(

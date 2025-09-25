@@ -21,9 +21,6 @@ SEGMENTATION_V1 = os.getenv(
     "SEGMENTATION_V1", "/dccstor/geofm-finetuning/datasets/geobench/segmentation_v1.0"
 )
 
-# OUTPUT_DIR = os.getenv(
-#     "OUTPUT_DIR", "/dccstor/geofm-finetuning/terratorch-iterate-test/"
-# )
 
 RAY_STORAGE = os.getenv(
     "RAY_STORAGE", "/dccstor/geofm-finetuning/terratorch-iterate-test/ray_storage"
@@ -105,9 +102,8 @@ def find_file(directory: str, filename: str):
 
 
 CONFIG_FILES = [
-    # "configs/tests/benchmark_v2_simple.yaml",
-    # "configs/tests/dofa_large_patch16_224_upernetdecoder_true_modified.yaml",
-    # "configs/tests/test_config_util__prithvi_eo_v1_100.yaml",
+    "configs/tests/benchmark_v2_simple.yaml",
+    "configs/tests/dofa_large_patch16_224_upernetdecoder_true_modified.yaml",
     "configs/tests/terratorch-iterate-configs/test_case_02/test_config_util__encoderdecoder_eo_v2_300_model_factory.yaml",
 ]
 CONTINUE_EXISTING_EXPERIMENT = [True, False]
@@ -124,6 +120,7 @@ def get_test_ids() -> list[str]:
         tid = f"{filename}_{cee}_{tm}"
         test_case_ids.append(tid)
     return test_case_ids
+
 
 @pytest.mark.parametrize(
     "config, continue_existing_experiment, test_models",
@@ -322,11 +319,14 @@ def test_run_benchmark_no_specific_terratorch_task(
     if storage_uri_path.is_dir() and delete_new_dirs:
         try:
             shutil.rmtree(storage_uri_path)
-            print(f"Directory '{storage_uri_path}' and its contents removed successfully.")
+            print(
+                f"Directory '{storage_uri_path}' and its contents removed successfully."
+            )
         except OSError as e:
             print(f"Error: {storage_uri_path} : {e.strerror}")
     else:
         print(f"Directory '{storage_uri_path}' does not exist.")
+
 
 def validate_results(experiment_name: str, storage_uri: str, finished_run_id: str):
     # get the most recent modified directory
