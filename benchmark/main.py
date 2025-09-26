@@ -11,6 +11,7 @@ from benchmark.utils import (
     import_custom_modules,
     get_results_and_parameters,
 )
+from benchmark.config_util import build_iterate_config
 
 
 def _summarize(
@@ -131,6 +132,42 @@ def _repeat_experiment(
     )
 
 
+def _convert_config(args: Namespace):
+    """
+    This function processes command-line arguments to convert configuration files.
+
+    Parameters:
+    args (argparse.Namespace): Namespace object containing command-line arguments.
+
+    Raises:
+    AssertionError: If input or output paths are invalid or missing.
+
+    This function performs the following steps:
+    1. Asserts that the 'input' argument is a non-empty string and checks if the file exists.
+    2. Asserts that the 'output' argument is a non-empty string.
+    3. Calls the `generate_iterate_config` function from the `build_iterate_config` module, passing the input path, output path, prefix (if provided), and template (if provided).
+    """
+    input: str = args.input
+    assert input is not None and isinstance(
+        input, str
+    ), f"Error! Invalid value: {input=}"
+    input_path = Path(input)
+    assert input_path.exists()
+
+    output: str = args.output
+    assert output is not None and isinstance(
+        output, str
+    ), f"Error! Invalid value: {output=}"
+    output_path = Path(output)
+    template: str | None = args.template
+
+    prefix: str | None = args.prefix
+
+    template: str | None = args.template
+    build_iterate_config.generate_iterate_config(
+        input=input_path, output=output_path, prefix=prefix, template=template
+    )
+
 def main():
 
     parser = ArgumentParser()
@@ -173,168 +210,206 @@ def main():
         type=str,
         help="name of summarized results file",
     )
+    # arguments to convert terratorch's config into iterate's config
+    parser.add_argument(
+        "--build_iterate_config",
+        help="convert terratorch's config into terratorch-iterate's config",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--input",
+        help="input file or directory",
+        type=str,
+    )
+    parser.add_argument(
+        "--output",
+        help="output file or directory",
+        type=str,
+    )
+    parser.add_argument(
+        "--template",
+        help="template for creating config files",
+        type=str,
+    )
+    parser.add_argument(
+        "--prefix",
+        help="prefix of new config files",
+        type=str,
+    )
 
     args = parser.parse_args()
-    config_path: str | None = args.config
-    if config_path is None:
-        msg = """
-        Error: config argument has not been passed
-        usage: terratorch [-h] [--hpo] [--repeat] [--summarize] [--config CONFIG] 
-        """
-        print(msg)
+    if (
+            args.build_iterate_config is not None
+            and args.build_iterate_config is True
+        ):
+        _convert_config(args)
     else:
-        assert isinstance(
-            config_path, str
-        ), f"Error! Unexpected config type: {config_path}"
-        config = parser.parse_path(config_path)
-        config_init: Namespace = parser.instantiate_classes(config)
-
-        summarize: bool = args.summarize
-        assert isinstance(summarize, bool), f"Error! {summarize=} is not a bool"
-        repeat = args.repeat
-        assert isinstance(repeat, bool), f"Error! {repeat=} is not a bool"
-        hpo = args.hpo
-        assert isinstance(hpo, bool), f"Error! {hpo=} is not a bool"
-
-        continue_existing_experiments: bool = args.continue_existing_experiments
-        assert isinstance(
-            continue_existing_experiments, bool
-        ), f"Error! {continue_existing_experiments=} is not a bool"
-
-        storage_uri = config_init.storage_uri
-        assert isinstance(storage_uri, str), f"Error! {storage_uri=} is not a str"
-        # handling relative paths
-        if storage_uri.startswith(".") or storage_uri.startswith(".."):
-            repo_home_dir = Path(__file__).parent.parent
-            abs_path = repo_home_dir / storage_uri
-            storage_uri = str(abs_path.resolve())
-
-        logger_path = config_init.logger
-        if logger_path is None:
-            storage_uri_path = Path(storage_uri)
-            logger = get_logger(
-                log_folder=f"{str(storage_uri_path.parents[0])}/job_logs"
-            )
+        config_path: str | None = args.config
+        if config_path is None:
+            msg = """
+            Error: config argument has not been passed
+            usage: terratorch iterate [-h] [--hpo] [--repeat] [--summarize] [--config CONFIG] 
+            """
+            print(msg)
         else:
-            logging.config.fileConfig(fname=logger_path, disable_existing_loggers=False)
-            logger = logging.getLogger("terratorch-iterate")
-
-        # only summarize results from multiple experiments
-        if summarize:
-            return _summarize(
-                config_init=config_init,
-            )
-
-        # optimize hyperparameters and/or do repeated runs for single experiments
-        assert (
-            hpo is True or repeat is True
-        ), f"Error! either {repeat=} or {hpo=} must be True"
-        parent_run_id = args.parent_run_id
-        if parent_run_id is not None:
             assert isinstance(
-                parent_run_id, str
-            ), f"Error! {parent_run_id=} is not a str"
+                config_path, str
+            ), f"Error! Unexpected config type: {config_path}"
+            config = parser.parse_path(config_path)
+        
 
-        # validate the objects
-        experiment_name = config_init.experiment_name
-        assert isinstance(
-            experiment_name, str
-        ), f"Error! {experiment_name=} is not a str"
-        run_name = config_init.run_name
-        if run_name is not None:
-            assert isinstance(run_name, str), f"Error! {run_name=} is not a str"
-        # validate defaults
-        defaults = config_init.defaults
-        assert isinstance(defaults, Defaults), f"Error! {defaults=} is not a Defaults"
+            config_init: Namespace = parser.instantiate_classes(config)
 
-        tasks = config_init.tasks
-        assert isinstance(tasks, list), f"Error! {tasks=} is not a list"
-        for t in tasks:
-            assert isinstance(t, Task), f"Error! {t=} is not a Task"
-            # if there is not specific terratorch_task specified, then use default terratorch_task
-            if t.terratorch_task is None:
-                t.terratorch_task = defaults.terratorch_task
-        # defaults.trainer_args["max_epochs"] = 5
+            summarize: bool = args.summarize
+            assert isinstance(summarize, bool), f"Error! {summarize=} is not a bool"
+            repeat = args.repeat
+            assert isinstance(repeat, bool), f"Error! {repeat=} is not a bool"
+            hpo = args.hpo
+            assert isinstance(hpo, bool), f"Error! {hpo=} is not a bool"
 
-        optimization_space = config_init.optimization_space
-        assert isinstance(
-            optimization_space, dict
-        ), f"Error! {optimization_space=} is not a dict"
-
-        # ray_storage_path is optional
-        ray_storage_path = config_init.ray_storage_path
-        if ray_storage_path is not None:
+            continue_existing_experiments: bool = args.continue_existing_experiments
             assert isinstance(
-                ray_storage_path, str
-            ), f"Error! {ray_storage_path=} is not a str"
+                continue_existing_experiments, bool
+            ), f"Error! {continue_existing_experiments=} is not a bool"
 
-        n_trials = config_init.n_trials
-        assert (
-            isinstance(n_trials, int) and n_trials > 0
-        ), f"Error! {n_trials=} is invalid"
-        run_repetitions = config_init.run_repetitions
+            storage_uri = config_init.storage_uri
+            assert isinstance(storage_uri, str), f"Error! {storage_uri=} is not a str"
+            # handling relative paths
+            if storage_uri.startswith(".") or storage_uri.startswith(".."):
+                repo_home_dir = Path(__file__).parent.parent
+                abs_path = repo_home_dir / storage_uri
+                storage_uri = str(abs_path.resolve())
 
-        report_on_best_val = config_init.report_on_best_val
-        assert isinstance(
-            report_on_best_val, bool
-        ), f"Error! {ray_storage_path=} is not a bool"
+            logger_path = config_init.logger
+            if logger_path is None:
+                storage_uri_path = Path(storage_uri)
+                logger = get_logger(
+                    log_folder=f"{str(storage_uri_path.parents[0])}/job_logs"
+                )
+            else:
+                logging.config.fileConfig(
+                    fname=logger_path, disable_existing_loggers=False
+                )
+                logger = logging.getLogger("terratorch-iterate")
 
-        save_models = config_init.save_models
-        assert isinstance(save_models, bool), f"Error! {save_models=} is not a bool"
+            # only summarize results from multiple experiments
+            if summarize:
+                return _summarize(
+                    config_init=config_init,
+                )
 
-        test_models = config_init.test_models
-        assert isinstance(test_models, bool), f"Error! {test_models=} is not a bool"
+            # optimize hyperparameters and/or do repeated runs for single experiments
+            assert (
+                hpo is True or repeat is True
+            ), f"Error! either {repeat=} or {hpo=} must be True"
+            parent_run_id = args.parent_run_id
+            if parent_run_id is not None:
+                assert isinstance(
+                    parent_run_id, str
+                ), f"Error! {parent_run_id=} is not a str"
 
-        bayesian_search = config_init.bayesian_search
-        assert isinstance(
-            bayesian_search, bool
-        ), f"Error! {bayesian_search=} is not a bool"
-
-        # custom_modules_path is optional
-        custom_modules_path = config_init.custom_modules_path
-        if custom_modules_path is not None:
+            # validate the objects
+            experiment_name = config_init.experiment_name
             assert isinstance(
-                custom_modules_path, str
-            ), f"Error! {custom_modules_path=} is not a str"
-            import_custom_modules(
-                logger=logger, custom_modules_path=custom_modules_path
-            )
+                experiment_name, str
+            ), f"Error! {experiment_name=} is not a str"
+            run_name = config_init.run_name
+            if run_name is not None:
+                assert isinstance(run_name, str), f"Error! {run_name=} is not a str"
+            # validate defaults
+            defaults = config_init.defaults
+            assert isinstance(
+                defaults, Defaults
+            ), f"Error! {defaults=} is not a Defaults"
 
-        if repeat and not hpo:
-            _repeat_experiment(
-                config_init=config_init,
-                storage_uri=storage_uri,
-                experiment_name=experiment_name,
-                defaults=defaults,
-                tasks=tasks,
-                optimization_space=optimization_space,
-                run_repetitions=run_repetitions,
-                save_models=save_models,
-                logger=logger,
-            )
-        else:
-            if not repeat and hpo:
-                run_repetitions = 0
+            tasks = config_init.tasks
+            assert isinstance(tasks, list), f"Error! {tasks=} is not a list"
+            for t in tasks:
+                assert isinstance(t, Task), f"Error! {t=} is not a Task"
+                # if there is not specific terratorch_task specified, then use default terratorch_task
+                if t.terratorch_task is None:
+                    t.terratorch_task = defaults.terratorch_task
+            # defaults.trainer_args["max_epochs"] = 5
 
-            # run_repetitions is an optional parameter
-            experiment_info: dict = benchmark_backbone(
-                defaults=defaults,
-                tasks=tasks,
-                experiment_name=experiment_name,
-                storage_uri=storage_uri,
-                ray_storage_path=ray_storage_path,
-                run_name=run_name,
-                optimization_space=optimization_space,
-                n_trials=n_trials,
-                run_repetitions=run_repetitions,
-                save_models=save_models,
-                report_on_best_val=report_on_best_val,
-                test_models=test_models,
-                bayesian_search=bayesian_search,
-                continue_existing_experiment=continue_existing_experiments,
-                logger=logger,
-            )
-            return experiment_info
+            optimization_space = config_init.optimization_space
+            assert isinstance(
+                optimization_space, dict
+            ), f"Error! {optimization_space=} is not a dict"
+
+            # ray_storage_path is optional
+            ray_storage_path = config_init.ray_storage_path
+            if ray_storage_path is not None:
+                assert isinstance(
+                    ray_storage_path, str
+                ), f"Error! {ray_storage_path=} is not a str"
+
+            n_trials = config_init.n_trials
+            assert (
+                isinstance(n_trials, int) and n_trials > 0
+            ), f"Error! {n_trials=} is invalid"
+            run_repetitions = config_init.run_repetitions
+
+            report_on_best_val = config_init.report_on_best_val
+            assert isinstance(
+                report_on_best_val, bool
+            ), f"Error! {ray_storage_path=} is not a bool"
+
+            save_models = config_init.save_models
+            assert isinstance(save_models, bool), f"Error! {save_models=} is not a bool"
+
+            test_models = config_init.test_models
+            assert isinstance(test_models, bool), f"Error! {test_models=} is not a bool"
+
+            bayesian_search = config_init.bayesian_search
+            assert isinstance(
+                bayesian_search, bool
+            ), f"Error! {bayesian_search=} is not a bool"
+
+            # custom_modules_path is optional
+            custom_modules_path = config_init.custom_modules_path
+            if custom_modules_path is not None:
+                assert isinstance(
+                    custom_modules_path, str
+                ), f"Error! {custom_modules_path=} is not a str"
+                import_custom_modules(
+                    logger=logger, custom_modules_path=custom_modules_path
+                )
+
+            if repeat and not hpo:
+                _repeat_experiment(
+                    config_init=config_init,
+                    storage_uri=storage_uri,
+                    experiment_name=experiment_name,
+                    defaults=defaults,
+                    tasks=tasks,
+                    optimization_space=optimization_space,
+                    run_repetitions=run_repetitions,
+                    save_models=save_models,
+                    logger=logger,
+                )
+            else:
+                if not repeat and hpo:
+                    run_repetitions = 0
+
+                # run_repetitions is an optional parameter
+                experiment_info: dict = benchmark_backbone(
+                    defaults=defaults,
+                    tasks=tasks,
+                    experiment_name=experiment_name,
+                    storage_uri=storage_uri,
+                    ray_storage_path=ray_storage_path,
+                    run_name=run_name,
+                    optimization_space=optimization_space,
+                    n_trials=n_trials,
+                    run_repetitions=run_repetitions,
+                    save_models=save_models,
+                    report_on_best_val=report_on_best_val,
+                    test_models=test_models,
+                    bayesian_search=bayesian_search,
+                    continue_existing_experiment=continue_existing_experiments,
+                    logger=logger,
+                )
+                return experiment_info
 
 
 if __name__ == "__main__":

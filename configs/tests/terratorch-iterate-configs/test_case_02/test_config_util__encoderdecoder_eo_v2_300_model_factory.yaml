@@ -18,7 +18,7 @@ defaults:
   trainer_args:
     log_every_n_steps: 1
     max_epochs: 5
-experiment_name: test_config_util__encoderdecoder_eo_v2_300_model_factory
+experiment_name: tt-iterate-_encoderdecoder_eo_v2_300_model_factory
 n_trials: 1
 optimization_space:
   lr:

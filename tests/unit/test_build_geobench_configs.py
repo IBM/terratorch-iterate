@@ -1,7 +1,7 @@
 from pathlib import Path
 import pytest
 import yaml
-from benchmark.config_util.build_geobench_configs import generate_iterate_config
+from benchmark.config_util.build_iterate_config import generate_iterate_config
 from deepdiff import DeepDiff
 import logging
 
@@ -9,7 +9,7 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
 
 @pytest.mark.parametrize(
-    "input_dir, output_dir, template, prefix, oracle_config_file",
+    "input, output, template, prefix, oracle_config_file",
     [
         (
             "./configs/tests/terratorch_configs/test_case_01",
@@ -26,6 +26,13 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
             "./configs/tests/terratorch-iterate-configs/test_case_02/oracle/test_config_util__encoderdecoder_eo_v2_300_model_factory.yaml",
         ),
         (
+            "./configs/tests/terratorch_configs/test_case_02/test_encoderdecoder_eo_v2_300_model_factory.yaml",
+            "./configs/tests/terratorch-iterate-configs/test_case_02/test_config_util__encoderdecoder_eo_v2_300_model_factory.yaml",
+            "./configs/templates/template.yaml",
+            "test_config_util_",
+            "./configs/tests/terratorch-iterate-configs/test_case_02/oracle/test_config_util__encoderdecoder_eo_v2_300_model_factory.yaml",
+        ),
+        (
             "./configs/tests/terratorch_configs/test_case_03",
             "./configs/tests/terratorch-iterate-configs/test_case_03",
             "./configs/templates/template.yaml",
@@ -35,32 +42,37 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     ],
 )
 def test__generate_iterate_config(
-    input_dir, output_dir, template, prefix, oracle_config_file
+    input, output, template, prefix, oracle_config_file
 ):
     # Get the absolute path of the current script file
     script_path = Path(__file__).resolve()
 
     # Get the home directory
     repo_home_dir = script_path.parent.parent.parent
-    input_dir_path: Path = repo_home_dir / input_dir
-    assert input_dir_path.exists()
-    assert input_dir_path.is_dir()
-    output_path: Path = repo_home_dir / output_dir
+    input_path: Path = repo_home_dir / input
+    assert input_path.exists()
+    output_path: Path = repo_home_dir / output
     assert output_path.exists()
-    assert output_path.is_dir()
     # warning! delete all files of the output dir
-    for item in output_path.iterdir():
-        if item.is_file():
-            logging.debug(f"Cleaning up directory: {item} deleted")
-            item.unlink()
+    if output_path.is_dir():
+        for item in output_path.iterdir():
+            if item.is_file():
+                logging.debug(f"Cleaning up directory: {item} deleted")
+                item.unlink()
+    else:
+        output_path.unlink()
 
     generate_iterate_config(
-        input_dir=input_dir_path,
-        output_dir=output_path,
+        input=input_path,
+        output=output_path,
         template=repo_home_dir / template,
         prefix=prefix,
     )
-    generated_config_files = list(output_path.glob(f'**/{prefix}*.yaml'))
+    if output_path.is_dir():
+        generated_config_files = list(output_path.glob(f'**/{prefix}*.yaml'))
+    else:
+        generated_config_files = [output_path]
+        
     assert len(generated_config_files) > 0
 
     if oracle_config_file is not None:

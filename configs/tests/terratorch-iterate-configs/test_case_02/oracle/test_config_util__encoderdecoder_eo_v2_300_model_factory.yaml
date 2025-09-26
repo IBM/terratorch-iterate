@@ -101,7 +101,7 @@ tasks:
       - '4'
       - '5'
       backbone_drop_path: 0.1
-      # backbone_pretrained: true
+      backbone_pretrained: true
       decoder: UNetDecoder
       decoder_channels:
       - 512
