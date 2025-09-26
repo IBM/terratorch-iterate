@@ -83,7 +83,7 @@ Issues = "https://github.com/IBM/terratorch-iterate/issues"
 
 [project.optional-dependencies]
 dev = [
-  "black",
+  "ruff",
   "flake8", 
   "mkdocs-material",
   "mkdocstrings[python]",
