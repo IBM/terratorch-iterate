@@ -150,7 +150,7 @@ def extract_repeated_experiment_results(
     task_metrics: list,
     task_names: list,
     num_repetitions: int = REPEATED_SEEDS_DEFAULT,
-) -> (pd.DataFrame, list):
+) -> tuple[pd.DataFrame, list]:
     """
     extracts results of repeated experiments from mlflow logs and saves them in csv
     save list of incomplete experiments to a txt file
@@ -211,7 +211,11 @@ def extract_repeated_experiment_results(
                 seed = int(run.info.run_name.split("_")[-1])
                 if task in task_info:
                     metric_name = task_info[task]
-                    metric_name = 'test_test/' + metric_name.split("/")[-1]
+                    name_1 = 'test_test/' + metric_name.split("/")[-1]
+                    name_2 = 'test_test_' + task.metric.replace(
+                        task.metric.split('_')[0] + "_", ''
+                    )
+                    metric_name = name_1 if '/' in task.metric else name_2
                 else:
                     continue
 
@@ -219,6 +223,8 @@ def extract_repeated_experiment_results(
                     logger.info(f"{metric_name} not found in task {task}. Skipping")
                     continue
                 score = run.data.metrics[metric_name]
+                if ("rmse" in metric_name) or ("RMSE" in metric_name):
+                    score = 1 - score
                 run_names.append(run.info.run_name)
                 exp_ids.append(experiment_id)
                 exp_names.append(original_experiment_name)
@@ -305,21 +311,27 @@ def extract_parameters(
         if experiment_info is None:
             continue
         experiment_id = experiment_info.experiment_id
-        logger.info(f"\nexperiment_name: {experiment_name} ")
+        logger.info(f"\n\n\nexperiment_name: {experiment_name}.")
         logger.info(f"experiment_id: {experiment_info.experiment_id}")
+
         exp_parent_run_name = f"top_run_{experiment_name}"
         experiment_parent_run_data = client.search_runs(
             experiment_ids=[experiment_id],
             filter_string=f'tags."mlflow.runName" LIKE "{exp_parent_run_name}"',
         )
+
+        logger.info(f"experiment_parent_run_data: {len(experiment_parent_run_data)}")
+        for run in experiment_parent_run_data:
+            logger.info(f"{run.info.run_id}: {run.info.run_name}")
         if (len(experiment_parent_run_data) > 1) or (
             len(experiment_parent_run_data) == 0
         ):
-            logger.debug(
+            logger.info(
                 f"The number of parent runs for each experiment should be 1. \
-                         It is currently {len(experiment_parent_run_data)}"
+                         It is currently {len(experiment_parent_run_data)}. Skipping."
             )
-            raise RuntimeError
+            continue
+            # raise RuntimeError
         for run in experiment_parent_run_data:
             exp_parent_run_id = run.info.run_id
 
@@ -333,39 +345,51 @@ def extract_parameters(
 
         for task in task_names:
             logger.info(f"task: {task}")
-            matching_runs = [run for run in runs if run.info.run_name.endswith(task)]  # type: ignore
-            best_params = matching_runs[0].data.params
+            try:  # doing try/except because some tasks are incomplete and will raise an error
+                matching_runs = [run for run in runs if run.info.run_name.endswith(task)]  # type: ignore
+                best_params = matching_runs[0].data.params
 
-            # eval them
-            best_params = {k: literal_eval(v) for k, v in best_params.items()}
-            best_params["experiment_name"] = experiment_name
-            best_params["dataset"] = task
-            best_params["decoder"] = matching_runs[0].data.tags["decoder"]
-            best_params["backbone"] = matching_runs[0].data.tags["backbone"]
-            best_params["early_stop_patience"] = matching_runs[0].data.tags[
-                "early_stop_patience"
-            ]
-            best_params["n_trials"] = matching_runs[0].data.tags["n_trials"]
-            best_params["partition_name"] = matching_runs[0].data.tags["partition_name"]
-            best_params["data_percentages"] = DATA_PARTITIONS[
-                best_params["partition_name"]
-            ]
-            if 'optimizer_hparams' in best_params:
-                logger.info(
-                    f"optimizer_hparams: {best_params['optimizer_hparams'].items()}"
+                # eval them
+                best_params = {k: literal_eval(v) for k, v in best_params.items()}
+                best_params["experiment_name"] = experiment_name
+                best_params["dataset"] = task
+                best_params["decoder"] = (
+                    matching_runs[0].data.tags["decoder"]
+                    if "decoder" in matching_runs[0].data.tags
+                    else "N/A"
                 )
-                optimizer_hparams = {
-                    k: v for k, v in best_params['optimizer_hparams'].items()
-                }
-                best_params.update(optimizer_hparams)
-                del best_params['optimizer_hparams']
-            if 'model_args' in best_params:
-                model_args = {k: v for k, v in best_params['model_args'].items()}
-                best_params.update(model_args)
-                del best_params['model_args']
+                best_params["backbone"] = matching_runs[0].data.tags["backbone"]
+                best_params["early_stop_patience"] = matching_runs[0].data.tags[
+                    "early_stop_patience"
+                ]
+                best_params["n_trials"] = matching_runs[0].data.tags["n_trials"]
+                best_params["partition_name"] = matching_runs[0].data.tags[
+                    "partition_name"
+                ]
+                best_params["data_percentages"] = DATA_PARTITIONS[
+                    best_params["partition_name"]
+                ]
+                if 'optimizer_hparams' in best_params:
+                    logger.info(
+                        f"optimizer_hparams: {best_params['optimizer_hparams'].items()}"
+                    )
+                    optimizer_hparams = {
+                        k: v for k, v in best_params['optimizer_hparams'].items()
+                    }
+                    best_params.update(optimizer_hparams)
+                    del best_params['optimizer_hparams']
+                if 'model_args' in best_params:
+                    model_args = {k: v for k, v in best_params['model_args'].items()}
+                    best_params.update(model_args)
+                    del best_params['model_args']
 
-            best_params = pd.DataFrame(best_params, index=[0])
-            all_params.append(best_params)
+                best_params = pd.DataFrame(best_params, index=[0])
+                all_params.append(best_params)
+            except Exception as e:
+                logger.info(f"error: {e}.")
+                continue
+
+    logger.info(f"\n all_params: {len(all_params)}.")
     all_params = pd.concat(all_params, axis=0)
     all_params = all_params.reset_index()
     return all_params
@@ -399,7 +423,7 @@ def get_results_and_parameters(
             Path(storage_uri).parents[0] / "summarized_results" / benchmark_name
         )
     else:
-        print("Please use a valid directory for storage_uri")
+        logger.info("Please use a valid directory for storage_uri")
         raise ValueError
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
@@ -430,6 +454,14 @@ def get_results_and_parameters(
     results_and_parameters.to_csv(
         f"{str(results_dir)}/results_and_parameters.csv", index=False
     )
+
+    visualize_combined_results(
+        combined_results=results_and_parameters,
+        storage_uri=storage_uri,
+        logger=logger,
+        plot_file_base_name=f"multiple_models_{benchmark_name}",
+    )
+
     return results_and_parameters
 
 
@@ -700,14 +732,15 @@ def visualize_combined_results(
     save_folder = Path(storage_uri).parents[0] / "visualizations"
     tables_folder = save_folder / "tables"
     plots_folder = save_folder / "plots"
+    normalizer_folder = save_folder / "normalizer"
     if not os.path.exists(tables_folder):
         os.makedirs(tables_folder)
     if not os.path.exists(plots_folder):
         os.makedirs(plots_folder)
+    if not os.path.exists(normalizer_folder):
+        os.makedirs(normalizer_folder)
 
-    combined_results = []
-    model_order = []
-    experiments = list(set(combined_results["experiment_name"]))
+    experiments = list(set(combined_results["experiment_name"].tolist()))
     combined_results = combined_results.rename(columns={"experiment_name": "model"})
     num_experiments = len(experiments)
     fig_size = (num_experiments * 5, 6) if num_experiments >= 3 else (15, 6)
@@ -717,63 +750,54 @@ def visualize_combined_results(
         zip(model_order, sns.color_palette("tab20", n_colors=len(model_order)))
     )
 
-    try:
-        # plot raw values
-        plot_tools.plot_per_dataset(
-            combined_results,
-            model_order=model_order,
-            plot_file_base_name=plot_file_base_name,
-            model_colors=model_colors,
+    # plot raw values
+    plot_tools.plot_per_dataset(
+        combined_results,
+        model_order=model_order,
+        model_colors=model_colors,
+        metric="test metric",
+        sharey=False,
+        inner="points",
+        fig_size=fig_size,
+        n_legend_rows=n_legend_rows,
+    )
+    plt.savefig(
+        str(plots_folder / f"violin_{plot_file_base_name}_raw.png"),
+        bbox_inches="tight",
+    )
+    plt.close()
+
+    # plot normalized, bootstrapped values values
+    plot_tools.make_normalizer(
+        combined_results,
+        metrics=("test metric",),
+        benchmark_name=plot_file_base_name,
+        normalizer_folder=normalizer_folder,
+    )
+    bootstrapped_iqm, normalized_combined_results = (
+        plot_tools.normalize_bootstrap_and_plot(
+            df=combined_results,
             metric="test metric",
-            sharey=False,
-            inner="points",
+            normalizer_folder=normalizer_folder,
+            benchmark_name=plot_file_base_name,
+            model_order=model_order,
+            model_colors=model_colors,
             fig_size=fig_size,
             n_legend_rows=n_legend_rows,
         )
-        plt.savefig(
-            str(plots_folder / f"violin_{plot_file_base_name}_raw.png"),
-            bbox_inches="tight",
-        )
-        plt.close()
+    )
 
-        # plot normalized, bootstrapped values values
-        plot_tools.make_normalizer(
-            combined_results,
-            metrics=("test metric",),
-            benchmark_name=plot_file_base_name,
-        )
-        bootstrapped_iqm, normalized_combined_results = (
-            plot_tools.normalize_bootstrap_and_plot(
-                combined_results,
-                plot_file_base_name=plot_file_base_name,
-                metric="test metric",
-                benchmark_name=plot_file_base_name,
-                model_order=model_order,
-                model_colors=model_colors,
-                fig_size=fig_size,
-                n_legend_rows=n_legend_rows,
-            )
-        )
-        # dataset_name_map=dataset_name_map)
-
-        plt.savefig(
-            str(
-                plots_folder
-                / f"violin_{plot_file_base_name}_normalized_bootstrapped.png"
-            ),
-            bbox_inches="tight",
-        )
-        plt.close()
-        bootstrapped_iqm.to_csv(
-            str(tables_folder / f"{plot_file_base_name}_bootstrapped_iqm.csv")
-        )
-        combined_results.to_csv(
-            str(
-                tables_folder / f"{plot_file_base_name}_normalized_combined_results.csv"
-            )
-        )
-    except Exception as e:
-        logger.info(f"could not visualize due to error: {e}")
+    plt.savefig(
+        str(plots_folder / f"violin_{plot_file_base_name}_normalized_bootstrapped.png"),
+        bbox_inches="tight",
+    )
+    plt.close()
+    bootstrapped_iqm.to_csv(
+        str(tables_folder / f"{plot_file_base_name}_bootstrapped_iqm.csv")
+    )
+    combined_results.to_csv(
+        str(tables_folder / f"{plot_file_base_name}_normalized_combined_results.csv")
+    )
 
 
 def get_logger(log_level="INFO", log_folder="./experiment_logs") -> logging.RootLogger:
