@@ -39,7 +39,7 @@ direction_type_to_optuna = {"min": "minimize", "max": "maximize"}
 
 
 def benchmark_backbone_on_task(
-    logger,
+    logger: logging.RootLogger,
     defaults: Defaults,
     task: Task,
     storage_uri: str,
@@ -52,7 +52,14 @@ def benchmark_backbone_on_task(
     sampler: BaseSampler | None = None,
     test_models: bool = False,
 ) -> tuple[float, str | list[str] | None, dict[str, Any]]:
-    optuna_db_path = Path(storage_uri).parents[0] / "optuna_db"
+    logger.info(
+        f"starting backbone benchmark on task {task.name} {task_run_id=} {experiment_name=}"
+    )
+    if storage_uri.startswith("http"):
+        optuna_db_path = Path(".") / "optuna_db"
+    else:
+        optuna_db_path = Path(storage_uri).parents[0] / "optuna_db"
+
     if not os.path.exists(optuna_db_path):
         os.makedirs(optuna_db_path)
     optuna_db_path = optuna_db_path / f"{experiment_name}_{experiment_run_id}"
@@ -67,8 +74,13 @@ def benchmark_backbone_on_task(
         n_trials=n_trials,
         logger=logger,
     )
-
-    with mlflow.start_run(run_name=task.name, nested=True, run_id=task_run_id) as run:
+    if task_run_id is not None:
+        # run_name is used only when run_id is unspecified.
+        run_name = None
+    else:
+        run_name = task.name
+    logger.info(f"start run: {run_name=} {task_run_id=}")
+    with mlflow.start_run(run_name=run_name, nested=True, run_id=task_run_id) as run:
         logger.info(f"starting task run with id: {run.info.run_id}")
         training_spec = combine_with_defaults(task, defaults)
         if "max_epochs" not in training_spec.trainer_args:
@@ -179,8 +191,8 @@ def parse_optimization_space(space: dict | None) -> optimization_space_type | No
 
 
 def _run_hpo(
-    run_name: str,
-    run_id: str,
+    run_name: str | None,
+    run_id: str | None,
     description: str,
     tasks: list,
     completed_task_run_names: list,
@@ -200,7 +212,12 @@ def _run_hpo(
     PATH_TO_JOB_TRACKING,
     logger,
 ) -> tuple[str, str]:
-    logger.info("Running hyperparameter optimization")
+    logger.info(
+        f"Running hyperparameter optimization: {run_name=} {run_id=} {description=}"
+    )
+    if run_id is not None:
+        run_name = None
+
     with mlflow.start_run(
         run_name=run_name, run_id=run_id, description=description
     ) as run:
@@ -286,7 +303,7 @@ def benchmark_backbone(
     run_id: str | None = None,
     description: str = "No description provided",
     bayesian_search: bool = True,
-    continue_existing_experiment: bool = False,
+    continue_existing_experiment: bool = True,
     test_models: bool = False,
     run_repetitions: int = REPEATED_SEEDS_DEFAULT,
     report_on_best_val: bool = True,
@@ -361,12 +378,14 @@ def benchmark_backbone(
             ):
                 logger.info("Continuing previous experiment parent run")
                 run_id = existing_experiments["incomplete_run_to_finish"]
+                logger.debug(f"incomplete_run_to_finish: {run_id=}")
                 experiment_id = existing_experiments["experiment_id"]
                 optimize_hyperparams = True
 
             if existing_experiments["finished_run"] is not None:
                 optimize_hyperparams = False
                 finished_run_id = existing_experiments["finished_run"]
+                logger.debug(f"finished_run: {run_id=}")
                 run_id = existing_experiments["finished_run"]
 
             # get previously completed tasks

@@ -6,6 +6,7 @@ import abc
 import copy
 import dataclasses
 import importlib
+import logging
 import os
 import shutil
 import types
@@ -445,13 +446,13 @@ def fit_model_with_hparams(
     )
     run_name = f"{run_name}_{trial.number}"
     return fit_model(
-        training_spec_with_generated_hparams,
-        lightning_task_class,
-        run_name,
-        experiment_name,
-        storage_uri,
-        parent_run_id,
-        trial,
+        training_spec=training_spec_with_generated_hparams,
+        lightning_task_class=lightning_task_class,
+        run_name=run_name,
+        experiment_name=experiment_name,
+        storage_uri=storage_uri,
+        parent_run_id=parent_run_id,
+        trial=trial,
         save_models=save_models,
         test_models=test_models,
     )[0]  # return only the metric value for optuna

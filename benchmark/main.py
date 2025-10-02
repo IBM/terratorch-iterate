@@ -1,3 +1,4 @@
+import os
 from jsonargparse import Namespace
 import logging
 from pathlib import Path
@@ -270,6 +271,7 @@ def main():
 
             storage_uri = config_init.storage_uri
             assert isinstance(storage_uri, str), f"Error! {storage_uri=} is not a str"
+            os.environ["MLFLOW_TRACKING_URI"] = storage_uri
             # handling relative paths
             if storage_uri.startswith(".") or storage_uri.startswith(".."):
                 repo_home_dir = Path(__file__).parent.parent
@@ -395,6 +397,7 @@ def main():
                     storage_uri=storage_uri,
                     ray_storage_path=ray_storage_path,
                     run_name=run_name,
+                    run_id=None,
                     optimization_space=optimization_space,
                     n_trials=n_trials,
                     run_repetitions=run_repetitions,

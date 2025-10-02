@@ -63,13 +63,16 @@ def sync_mlflow_optuna(
     Returns:
         task_run_id: run id of the task to be continued (if one exists) or None
     """
+    logger.info(
+        f"sync_mlflow_optuna - {optuna_db_path=} {storage_uri=} {task_run_id=} {experiment_name=} {task_run_id=}"
+    )
     # check number of successful mlflow runs in task
     client = mlflow.tracking.MlflowClient(tracking_uri=storage_uri)
     completed_in_mlflow_for_task = []
     all_mlflow_runs_for_task = []
     if task_run_id is not None:
         all_mlflow_runs_for_task.append(task_run_id)
-        logger.info(f"task_run_id : {task_run_id}")
+        logger.info(f"sync_mlflow_optuna - {task_run_id=}")
         experiment_info = client.get_experiment_by_name(experiment_name)
         assert isinstance(experiment_info, Experiment), (
             f"Error! Unexpected type of {experiment_info=}"
@@ -140,6 +143,7 @@ def sync_mlflow_optuna(
                 )
                 os.system(f"rm -r {experiment_info.artifact_location}/{item}")
             task_run_id = None
+    logging.info(f"sync_mlflow_optuna returns {task_run_id=}")
     return task_run_id
 
 
