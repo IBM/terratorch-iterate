@@ -14,7 +14,7 @@ include = ["benchmark*"]
 
 name = "terratorch-iterate"
 version = "0.2.0"
-requires-python = ">= 3.9"
+requires-python = ">= 3.10"
 description = "A terratorch's plugin for benchmarking and hyperparameter optimization"
 authors = [
       { name = "Carlos Gomes"},
@@ -62,7 +62,6 @@ dependencies = [
 "importlib-metadata",
 "numpy",
 "optuna",
-"tabulate",
 "types-tabulate",
 "ray",
 "gputil",
@@ -72,6 +71,7 @@ dependencies = [
 "optuna-integration",
 "seaborn",
 "psutil",
+"tabulate>=0.9.0",
 ]
 
 [project.urls]
@@ -105,12 +105,12 @@ nvidia = ["pynvml"]
 amd = ["pyrsmi"]
 
 [tool.black]
-target-version = ["py310"]
+target-version = ["py312"]
 line-length = 88
 skip-string-normalization = true
 
 [project.scripts]
-iterate = "benchmark.main:main"
+iterate = "terratorch_iterate.main:main"
 # ray_benchmark = "benchmark.benchmark_ray:main"
 # repeat_experiments = "benchmark.main:main"
 
