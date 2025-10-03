@@ -2,7 +2,7 @@ import itertools
 from pathlib import Path
 
 import yaml
-from benchmark.main import main
+from terratorch_iterate.main import main
 import pytest
 import sys
 

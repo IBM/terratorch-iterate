@@ -4,15 +4,15 @@ import logging
 from pathlib import Path
 from jsonargparse import ArgumentParser
 import pandas as pd
-from benchmark.backbone_benchmark import benchmark_backbone
-from benchmark.benchmark_types import Defaults, Task
-from benchmark.repeat_best_experiment import rerun_best_from_backbone
-from benchmark.utils import (
+from terratorch_iterate.backbone_benchmark import benchmark_backbone
+from terratorch_iterate.iterate_types import Defaults, Task
+from terratorch_iterate.repeat_best_experiment import rerun_best_from_backbone
+from terratorch_iterate.utils import (
     get_logger,
     import_custom_modules,
     get_results_and_parameters,
 )
-from benchmark.config_util import build_iterate_config
+from terratorch_iterate.config_util import build_iterate_config
 
 
 def _summarize(
